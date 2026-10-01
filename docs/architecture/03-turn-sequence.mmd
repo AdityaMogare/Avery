@@ -1,0 +1,31 @@
+sequenceDiagram
+    actor User
+    participant UI as React UI
+    participant API as FastAPI
+    participant LLM as OpenAI
+    participant SOP as SOP Controller
+    participant Tools as Phase-gated Tools
+    participant Ver as Grounding Verifier
+
+    User->>UI: message
+    UI->>API: POST /api/chat (X-OpenAI-Key optional)
+    API->>LLM: Understand (strict JSON schema)
+    LLM-->>API: TurnUnderstanding (PII, hints, emotion, off_topic, injection…)
+    API->>SOP: merge memory + evaluate gates
+    SOP->>Tools: call only tools allowed in this phase
+    Note over Tools: claim tools raise ToolGateError<br/>unless verified (+ consent)
+    Tools-->>SOP: results → FactSheet (fact IDs)
+    SOP-->>API: Decision (actions + FactSheet)
+    API->>LLM: Respond (current-phase rules + FACTS only)
+    LLM-->>API: {rule_check, reply, claims[{text, fact_ids}]}
+    API->>Ver: verify reply against FactSheet
+    alt grounded
+        Ver-->>API: ok
+    else violations
+        API->>LLM: regenerate once with violations listed
+        LLM-->>API: revised reply
+        API->>Ver: verify again
+        Ver-->>API: ok, or → deterministic template (grounded by construction)
+    end
+    API-->>UI: reply + citations + phase + memory + trace events
+    UI-->>User: message (debug panel updates)
