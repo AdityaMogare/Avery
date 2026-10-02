@@ -1,9 +1,9 @@
 {
   "summary": {
-    "mode": "llm:gpt-5.4-nano",
+    "mode": "offline",
     "fixtures": "fixtures",
-    "judge_model": "gpt-5.4-nano",
-    "k": 2,
+    "judge_model": null,
+    "k": 1,
     "judge": false,
     "scenarios": 2,
     "pass_k": 2,
@@ -11,29 +11,17 @@
     "claims": 0,
     "supported": 0,
     "regenerations": 0,
-    "fallbacks": 1,
-    "turns": 14,
-    "seconds": 58.7,
-    "usage": {
-      "turns": 14,
-      "conversations": 4,
-      "turn_wall_ms_p50": 4014,
-      "turn_wall_ms_p95": 5102,
-      "llm_calls_per_turn": 2.07,
-      "tokens_per_turn": 4040,
-      "tokens_per_conversation": 14142,
-      "cost_usd_per_turn": 0.001224,
-      "cost_usd_per_conversation": 0.004284,
-      "cost_usd_per_1k_conversations": 4.28,
-      "judge": null
-    }
+    "fallbacks": 0,
+    "turns": 7,
+    "seconds": 0.0,
+    "usage": null
   },
   "scenarios": [
     {
       "id": "margaret_demo_single_utterance",
       "description": "Context.md demo test case: identity + case hint in one utterance, then grounded follow-up and email.",
-      "trials": 2,
-      "passed": 2,
+      "trials": 1,
+      "passed": 1,
       "pass_k": true,
       "failures": [],
       "trace_properties": {
@@ -56,7 +44,7 @@
         },
         {
           "role": "assistant",
-          "content": "Thanks, Margaret. You\u2019re verified, and I\u2019ve pulled up your healthcare claim CL-2048. It was denied because the review file didn\u2019t include the pathology report and the treating provider office note, and the documents needed are those two items. Your appeal deadline has passed, so options after a passed appeal deadline are reviewed by a human representative, and you can ask to be connected; would you like me to transfer you to one now?"
+          "content": "Thank you, Margaret Chen, you're verified. I've pulled up claim CL-2048. Claim CL-2048 is a healthcare claim created on 2026-01-12, and its status is denied: Healthcare claim denied due to missing pathology report and office note. It was denied because the review file did not include the pathology report and the treating provider office note. To reconsider it, the review needs: pathology report, office note. The appeal deadline on record was 2026-03-18, which has passed as of today (2026-10-01). Options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you'd like. Is there anything else I can help you with on this claim?"
         },
         {
           "role": "user",
@@ -64,7 +52,7 @@
         },
         {
           "role": "assistant",
-          "content": "Your healthcare claim CL-2048 was denied because the review file didn\u2019t include the pathology report and the treating provider office note. To address that, you\u2019ll need to send a pathology report and the treating provider office note. Since the appeal deadline status is passed, options after a passed appeal deadline are reviewed by a human representative, and you can ask to be connected\u2014would you like me to transfer you to a human representative?"
+          "content": "Claim CL-2048 is a healthcare claim created on 2026-01-12, and its status is denied: Healthcare claim denied due to missing pathology report and office note. It was denied because the review file did not include the pathology report and the treating provider office note. To reconsider it, the review needs: pathology report, office note. The appeal deadline on record was 2026-03-18, which has passed as of today (2026-10-01). Options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you'd like. Is there anything else I can help you with on this claim?"
         },
         {
           "role": "user",
@@ -72,7 +60,7 @@
         },
         {
           "role": "assistant",
-          "content": "Got it, Margaret. I can email you a summary of your call, including the denial reason and the next steps for claim CL-2048, to m***@email.com\u2014would you like me to send it or skip sending it?"
+          "content": "Before you go, would you like me to email a summary of our conversation, including what we discussed, the claim status and next steps, to m***@email.com? Just say send or skip."
         },
         {
           "role": "user",
@@ -80,15 +68,15 @@
         },
         {
           "role": "assistant",
-          "content": "Thanks. I\u2019ve sent the summary to m***@email.com. Take care, and thanks for calling claims support."
+          "content": "Done. I've sent the summary to m***@email.com. Thank you for calling!"
         }
       ]
     },
     {
       "id": "edge_switch_back",
       "description": "Switching to the auto claim and back to the denied claim restores the right case each time.",
-      "trials": 2,
-      "passed": 2,
+      "trials": 1,
+      "passed": 1,
       "pass_k": true,
       "failures": [],
       "trace_properties": {
@@ -111,7 +99,7 @@
         },
         {
           "role": "assistant",
-          "content": "Thanks, Margaret Chen. I can confirm your details were verified, and I pulled up your healthcare claim CL-2048. It\u2019s currently denied because the review file didn\u2019t include the pathology report and the treating provider office note. The appeal deadline has passed, so options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you\u2019d like\u2014would you like me to do that?"
+          "content": "Thank you, Margaret Chen, you're verified. I've pulled up claim CL-2048. Claim CL-2048 is a healthcare claim created on 2026-01-12, and its status is denied: Healthcare claim denied due to missing pathology report and office note. It was denied because the review file did not include the pathology report and the treating provider office note. To reconsider it, the review needs: pathology report, office note. The appeal deadline on record was 2026-03-18, which has passed as of today (2026-10-01). Options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you'd like. Is there anything else I can help you with on this claim?"
         },
         {
           "role": "user",
@@ -119,7 +107,7 @@
         },
         {
           "role": "assistant",
-          "content": "Okay, I switched to your auto claim CL-2102. It\u2019s currently open and in progress, with an expected reimbursement amount of $3,200.00 and an allowed max amount of $3,500.00. Do you want me to connect you to a human representative, or is there a specific question you have about this auto claim?"
+          "content": "I've pulled up claim CL-2102. Claim CL-2102 is an auto claim created on 2026-02-28, and its status is open: Auto claim in progress. The expected reimbursement is $3200.00 and the amount paid so far is $0.00. Is there anything else I can help you with on this claim?"
         },
         {
           "role": "user",
@@ -127,7 +115,7 @@
         },
         {
           "role": "assistant",
-          "content": "For your denied healthcare claim CL-2048, you\u2019ll need the pathology report and the treating provider\u2019s office note, because the review file didn\u2019t include those documents. The appeal deadline has passed, and options after a passed appeal deadline are reviewed by a human representative if you want a transfer\u2014would you like me to connect you?"
+          "content": "I've pulled up claim CL-2048. Claim CL-2048 is a healthcare claim created on 2026-01-12, and its status is denied: Healthcare claim denied due to missing pathology report and office note. It was denied because the review file did not include the pathology report and the treating provider office note. To reconsider it, the review needs: pathology report, office note. The appeal deadline on record was 2026-03-18, which has passed as of today (2026-10-01). Options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you'd like. Is there anything else I can help you with on this claim?"
         }
       ]
     }

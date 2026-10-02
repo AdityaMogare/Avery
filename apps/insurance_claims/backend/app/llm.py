@@ -60,7 +60,8 @@ class LLMClient:
         from openai import OpenAI
 
         self.model = model or config.OPENAI_MODEL
-        self.client = OpenAI(api_key=api_key, base_url=config.OPENAI_BASE_URL)
+        # The SDK retries 429s and 5xx with exponential backoff and honours retry-after.
+        self.client = OpenAI(api_key=api_key, base_url=config.OPENAI_BASE_URL, max_retries=config.OPENAI_MAX_RETRIES)
 
     def _record(self, name: str, resp: Any, started: float) -> None:
         sink = USAGE_SINK.get()

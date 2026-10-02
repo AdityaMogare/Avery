@@ -4,6 +4,7 @@ Usage (from apps/insurance_claims/backend):
     python -m evals.run_evals                 # offline (heuristic + template), k=1
     OPENAI_API_KEY=... python -m evals.run_evals --k 3 --judge
     python -m evals.run_evals --fixtures ../fixtures_alt   # same harness on unseen data -> report_alt.*
+    python -m evals.run_evals --k 3 --export evals/trajectories.jsonl   # + rule-rewarded trajectories
 Writes evals/report.md and evals/report.json.
 """
 
@@ -37,6 +38,7 @@ def main() -> int:
     ap.add_argument("--only", nargs="*", help="scenario ids")
     ap.add_argument("--offline", action="store_true", help="ignore OPENAI_API_KEY")
     ap.add_argument("--fixtures", type=Path, help="alternate fixtures dir (with specs/scenarios.json)")
+    ap.add_argument("--export", type=Path, help="write one JSONL episode per trial with rule-based rewards")
     args = ap.parse_args()
 
     key = None if args.offline else os.getenv("OPENAI_API_KEY")
@@ -48,6 +50,7 @@ def main() -> int:
     turn_usage: list[dict] = []        # one entry per agent turn
     convo_usage: list[dict] = []       # one entry per conversation (trial)
     judge_calls: list[dict] = []
+    episodes: list[dict] = []
     started = time.time()
 
     for spec in scenarios:
@@ -86,6 +89,8 @@ def main() -> int:
                     totals["regenerations"] += e.data["responder"] == "llm_regenerated"
                     totals["fallbacks"] += e.data["responder"] == "template_fallback"
             trials.append(run)
+            if args.export:
+                episodes.append(trajectory(spec, run, len(trials), agent.mode))
         passed = sum(t.passed for t in trials)
         rows.append({
             "id": spec["id"], "description": spec["description"], "trials": args.k, "passed": passed,
@@ -105,8 +110,42 @@ def main() -> int:
     }
     (OUT / f"{stem}.json").write_text(json.dumps({"summary": summary, "scenarios": rows}, indent=2))
     (OUT / f"{stem}.md").write_text(render_md(summary, rows))
+    if args.export:
+        args.export.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in episodes))
+        print(f"wrote {len(episodes)} episodes to {args.export}")
     print(json.dumps(summary, indent=2))
     return 0 if summary["pass_k"] == summary["scenarios"] else 1
+
+
+TURN_REWARD = {"llm": 1.0, "llm_regenerated": 0.5, "template_fallback": 0.0, "template": 0.0}
+
+
+def trajectory(spec: dict, run, trial: int, mode: str) -> dict:
+    """One episode for post-training: per-turn context, the reply, and verifiable rule rewards.
+
+    Turn reward: 1.0 if the model's FIRST draft passed the grounding verifier and gates G1-G9, 0.5 if it
+    needed one regeneration, 0.0 if the deterministic template had to replace it. Episode reward: mean turn
+    reward, zeroed if any scenario expectation or trace property failed (outcome over path).
+    """
+    turns = []
+    for i, res in enumerate(run.results, 1):
+        resp = next((e for e in res.events if e["type"] == "response"), {"data": {}})["data"]
+        drafts = [e["data"]["violations"] for e in res.events if e["type"] == "grounding_violation"]
+        phase = next((e["data"]["phase"] for e in res.events if e["type"] == "decision"), None)
+        responder = resp.get("responder", "template")
+        turns.append({
+            "turn": i, "user": spec["turns"][i - 1], "reply": res.reply, "phase": phase, "actions": res.actions,
+            "facts": {f["id"]: f["value"] for f in res.facts}, "cited_fact_ids": resp.get("cited_fact_ids", []),
+            "responder": responder, "first_draft_violations": drafts[0] if drafts else [],
+            "reward": TURN_REWARD.get(responder, 0.0), "usage": res.usage,
+        })
+    rewards = [t["reward"] for t in turns]
+    return {
+        "scenario": spec["id"], "trial": trial, "mode": mode, "description": spec["description"],
+        "outcome_ok": run.passed, "failures": run.failures, "trace_properties": run.trace_properties,
+        "episode_reward": round(sum(rewards) / len(rewards), 3) * (1 if run.passed else 0) if rewards else 0.0,
+        "turns": turns,
+    }
 
 
 def _pct(values: list[float], q: float) -> float:

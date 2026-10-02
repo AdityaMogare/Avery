@@ -40,6 +40,7 @@ OPENAI_JUDGE_MODEL = os.getenv("OPENAI_JUDGE_MODEL") or OPENAI_MODEL
 # Optional, only sent when set (not every model accepts it).
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL") or None
+OPENAI_MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "6"))
 
 # USD per 1M tokens, used for the per-turn cost estimate. Defaults: gpt-5.4-nano list price
 # (developers.openai.com/docs/models/gpt-5.4-nano, checked 2026-10-01).
