@@ -184,7 +184,8 @@ class TemplateResponder:
         specific = bool(topics or alternatives)
         overview = "CASE_SELECTED" in decision.actions or not specific
         if overview:
-            say(f"Claim {cid} is a {v(p + '.case_type')} claim created on {v(p + '.created_at')}, and its status is "
+            ctype = v(p + '.case_type')
+            say(f"Claim {cid} is {'an' if ctype[:1].lower() in 'aeiou' else 'a'} {ctype} claim created on {v(p + '.created_at')}, and its status is "
                 f"{v(p + '.status')}: {v(p + '.summary')}.", f"{p}.case_id", f"{p}.case_type", f"{p}.created_at", f"{p}.status", f"{p}.summary")
             if f"{p}.denial_reason" in f:
                 say(f"It was denied because {v(p + '.denial_reason')}.", f"{p}.denial_reason")

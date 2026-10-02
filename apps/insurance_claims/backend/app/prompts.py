@@ -74,7 +74,7 @@ ACTION_INSTRUCTIONS = {
     "DISAMBIGUATE": "Say a few claims could match and ask which one, listing the candidates (resolve.candidates) with type, date, status.",
     "NO_MATCHING_CASE": "Say you couldn't find a claim matching what they described (resolve.no_match_for) and list the claims in FACTS.",
     "NO_CLAIMS_ON_FILE": "Say you don't see any claims on file for their policy and ask how else you can help with their policy.",
-    "CASE_SELECTED": "Say which claim you pulled up. If session.case_found_from_earlier_hint exists, make clear you used what they told you earlier instead of asking again.",
+    "CASE_SELECTED": "Say which claim you pulled up. If session.case_found_from_earlier_hint exists, make clear you used what they told you earlier instead of asking again. If session.switched_from_case_id exists, the caller asked to move from that claim to this one: this IS the claim they asked about.",
     "ANSWER_CASE": "Answer the caller's question about the selected claim from FACTS. If they haven't asked anything specific yet, give the status and, if denied, the reason, documents needed and the appeal deadline status.",
     "CASE_UNAVAILABLE": "Say you can't access that claim.",
     "OFFER_EMAIL": "Offer to email a summary (email.summary_contents) to email.to_masked, citing both, and ask if they want it sent or skipped.",

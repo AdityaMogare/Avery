@@ -199,6 +199,10 @@ class HeuristicUnderstander:
                              "auto": ("auto", "car ", "vehicle")}.items():
             if any(w in low for w in words):
                 u.case_type = ctype  # type: ignore[assignment]
+        if re.search(r"\b(closed|settled|completed)\b", low):
+            u.case_status = "closed"
+        elif re.search(r"\b(open|pending|ongoing|in progress)\b", low) and "claim" in low:
+            u.case_status = "open"
         if "denied" in low or "denial" in low or "rejected" in low:
             u.case_status = "denied"
             u.intent = "denial_question"
