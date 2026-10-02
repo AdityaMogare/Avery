@@ -44,7 +44,7 @@ def snapshot(state: SessionState) -> dict[str, Any]:
         "session_id": state.id,
         "phase": state.phase.value,
         "turn": state.turn,
-        "verification": {**state.verification.model_dump(exclude={"failed_signatures"}),
+        "verification": {**state.verification.model_dump(exclude={"failed_signatures", "retained_pii"}),
                          "verified_for_claims": state.verified},
         "consent": state.consent.model_dump(),
         "memory": mem,

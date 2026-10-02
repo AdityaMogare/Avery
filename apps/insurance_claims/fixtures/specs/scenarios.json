@@ -876,6 +876,83 @@
           "1": "VERIFY_ID"
         }
       }
+    },
+    {
+      "id": "edge_field_correction_after_failure",
+      "category": "edge_case",
+      "gate": "VERIFY_ID correction (retained fields from the failed attempt)",
+      "source": "grading doc: correcting a field mid-verification (hard personas)",
+      "description": "A wrong DOB fails the match; correcting only the DOB verifies without repeating name and SSN, and the failed field is never named.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, SSN last four 4472.",
+        "Sorry, my date of birth is actually 1985-03-15."
+      ],
+      "expect": {
+        "verified_turn": 2,
+        "failed_attempts": 1,
+        "phase_by_turn": {
+          "1": "VERIFY_ID"
+        },
+        "actions_by_turn": {
+          "1": [
+            "VERIFICATION_FAILED"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "1985-03-16",
+            "date of birth was",
+            "date of birth is wrong",
+            "wrong date",
+            "doesn't match your date",
+            "4472"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_field_correction_same_message",
+      "category": "edge_case",
+      "gate": "VERIFY_ID correction inside one message",
+      "source": "grading doc: correcting a field mid-verification",
+      "description": "The caller corrects their DOB in the same sentence; the corrected value is used and no attempt is spent.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, sorry, I mean 1985-03-15, and SSN last four 4472."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "failed_attempts": 0
+      }
+    },
+    {
+      "id": "edge_question_after_failure_no_recheck",
+      "category": "edge_case",
+      "gate": "VERIFY_ID attempt accounting",
+      "source": "grading doc: correction support must not re-run (or re-count) a failed match on a bare question",
+      "description": "After a failed match, a question with no new identity input neither re-runs the match nor spends an attempt; a later correction verifies.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, SSN last four 4472.",
+        "Why didn't that work?",
+        "Oh wait, my birthday is 1985-03-15."
+      ],
+      "expect": {
+        "verified_turn": 3,
+        "failed_attempts": 1,
+        "phase_by_turn": {
+          "1": "VERIFY_ID",
+          "2": "VERIFY_ID"
+        },
+        "actions_absent_by_turn": {
+          "2": [
+            "VERIFICATION_FAILED",
+            "VERIFIED",
+            "OFF_TOPIC_REFUSAL"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "(didn.t|did not|does not|doesn.t) match"
+        }
+      }
     }
   ]
 }
