@@ -120,7 +120,7 @@ def simulate_one(agent: Agent, sim: LLMClient, persona: str, goal: str) -> dict[
         result = agent.handle(state, turn.message)
         agent_calls.append(result.usage)
         transcript.append(("agent", result.reply))
-        if state.phase.value in ("ENDED", "HUMAN_TRANSFER"):
+        if state.phase.value == "ENDED" or (state.phase.value == "HUMAN_TRANSFER" and not state.pending_offer):
             break
     return score(state, agent, persona, goal, transcript, agent_calls, sim_calls, error, time.time() - started)
 

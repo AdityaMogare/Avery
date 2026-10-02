@@ -57,6 +57,8 @@ LLM_JUDGE_MODEL = os.getenv("LLM_JUDGE_MODEL") or os.getenv("OPENAI_JUDGE_MODEL"
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
 # Custom OpenAI-compatible endpoint; overrides the provider's base URL.
 LLM_BASE_URL = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or None
+# SDK retries for 429s and 5xx. OPENAI_MAX_RETRIES is the older name.
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES") or os.getenv("OPENAI_MAX_RETRIES") or "6")
 
 
 def detect_provider(api_key: str, explicit: str | None = None) -> str:

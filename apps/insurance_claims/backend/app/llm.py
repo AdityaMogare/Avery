@@ -65,12 +65,13 @@ class LLMClient:
         if self.provider == "anthropic":
             from anthropic import Anthropic
 
-            self.client = Anthropic(api_key=api_key)
+            # Both SDKs retry 429s and 5xx with exponential backoff and honour retry-after.
+            self.client = Anthropic(api_key=api_key, max_retries=config.LLM_MAX_RETRIES)
         else:
             from openai import OpenAI
 
             base_url = config.LLM_BASE_URL or config.PROVIDERS[self.provider]["base_url"]
-            self.client = OpenAI(api_key=api_key, base_url=base_url)
+            self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=config.LLM_MAX_RETRIES)
         self._json_object_only = False  # set once an endpoint rejects json_schema response_format
 
     def _record(self, name: str, started: float, *, prompt: int, cached: int, completion: int, reasoning: int = 0) -> None:
