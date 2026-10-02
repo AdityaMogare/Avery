@@ -2,7 +2,7 @@
 
 Usage (from apps/insurance_claims/backend):
     python -m evals.run_evals                 # offline (heuristic + template), k=1
-    OPENAI_API_KEY=... python -m evals.run_evals --k 3 --judge
+    OPENAI_API_KEY=... python -m evals.run_evals --k 3 --judge   # any provider key works (see app/config.py)
 Writes evals/report.md and evals/report.json.
 """
 
@@ -18,6 +18,7 @@ from pathlib import Path
 
 os.environ.setdefault("OUTBOX_DIR", tempfile.mkdtemp(prefix="sop-eval-outbox-"))
 
+from app import config  # noqa: E402
 from app.evaluation import load_scenarios, run_scenario  # noqa: E402
 from app.grounding.factsheet import FactSheet  # noqa: E402
 from app.grounding.judge import judge_reply  # noqa: E402
@@ -32,10 +33,10 @@ def main() -> int:
     ap.add_argument("--k", type=int, default=1, help="trials per scenario (pass^k)")
     ap.add_argument("--judge", action="store_true", help="run the LLM groundedness judge on every reply")
     ap.add_argument("--only", nargs="*", help="scenario ids")
-    ap.add_argument("--offline", action="store_true", help="ignore OPENAI_API_KEY")
+    ap.add_argument("--offline", action="store_true", help="ignore any LLM API key")
     args = ap.parse_args()
 
-    key = None if args.offline else os.getenv("OPENAI_API_KEY")
+    key = None if args.offline else config.env_api_key()
     agent = Agent(api_key=key)
     scenarios = [s for s in load_scenarios() if not args.only or s["id"] in args.only]
     rows, totals = [], {"claims": 0, "supported": 0, "regenerations": 0, "fallbacks": 0, "turns": 0}
