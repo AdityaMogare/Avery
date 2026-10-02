@@ -1260,6 +1260,37 @@
           "3": "sent"
         }
       }
+    },
+    {
+      "id": "edge_pushback_and_verify_same_turn",
+      "category": "edge_case",
+      "gate": "G4 state contradiction",
+      "source": "simulated-user eval (angry persona): complaint + details in one message shipped 'I can't share anything until you're verified ... you're verified'",
+      "description": "A caller who complains about verification and gives valid details in the same message is verified without being told verification is still required.",
+      "turns": [
+        "This is ridiculous, why do you need all this? Fine, my name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. How much will I get for my auto claim?"
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-2102",
+        "actions_by_turn": {
+          "1": [
+            "EMPATHY",
+            "VERIFIED"
+          ]
+        },
+        "actions_absent_by_turn": {
+          "1": [
+            "EXPLAIN_VERIFICATION"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "1": [
+            "G4",
+            "G9"
+          ]
+        }
+      }
     }
   ]
 }

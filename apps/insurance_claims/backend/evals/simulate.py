@@ -98,6 +98,8 @@ def simulate_one(agent: Agent, sim: LLMClient, persona: str, goal: str) -> dict[
     state.consent.scenario = g.get("consent", "default")
     agent_calls: list[dict] = []
     sim_calls: list[dict] = []
+    responders: list[str] = []
+    agent_errors: list[str] = []
     greeting = agent.start(state)
     transcript = [("agent", greeting)]
     error = None
@@ -119,10 +121,17 @@ def simulate_one(agent: Agent, sim: LLMClient, persona: str, goal: str) -> dict[
         transcript.append(("caller", turn.message))
         result = agent.handle(state, turn.message)
         agent_calls.append(result.usage)
+        responders.append(next((e["data"]["responder"] for e in result.events if e["type"] == "response"), "?"))
+        agent_errors.extend(result.errors)
         transcript.append(("agent", result.reply))
         if state.phase.value == "ENDED" or (state.phase.value == "HUMAN_TRANSFER" and not state.pending_offer):
             break
-    return score(state, agent, persona, goal, transcript, agent_calls, sim_calls, error, time.time() - started)
+    r = score(state, agent, persona, goal, transcript, agent_calls, sim_calls, error, time.time() - started)
+    # A throttled run falls back to templates; count it so contaminated results are visible, not silent.
+    r["template_fallbacks"] = responders.count("template_fallback")
+    r["regenerations"] = responders.count("llm_regenerated")
+    r["agent_errors"] = agent_errors
+    return r
 
 
 def score(state, agent, persona, goal, transcript, agent_calls, sim_calls, error, seconds) -> dict[str, Any]:
@@ -158,7 +167,7 @@ def score(state, agent, persona, goal, transcript, agent_calls, sim_calls, error
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=3)
-    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--workers", type=int, default=3, help="parallel conversations (nano TPM limit: keep low)")
     ap.add_argument("--personas", nargs="*", default=list(PERSONAS))
     ap.add_argument("--goals", nargs="*", default=list(GOALS))
     args = ap.parse_args()
@@ -196,6 +205,10 @@ def summarize(results: list[dict], runs: int, seconds: float) -> dict[str, Any]:
         "passed": sum(r["passed"] for r in results),
         "cells_pass_all": sum(c["passed"] == c["n"] for c in cells.values()), "cells": list(cells.values()),
         "mean_turns": round(sum(r["turns"] for r in results) / len(results), 1),
+        "agent_replies": sum(r["turns"] for r in results),
+        "template_fallbacks": sum(r["template_fallbacks"] for r in results),
+        "regenerations": sum(r["regenerations"] for r in results),
+        "conversations_with_model_errors": sum(bool(r["agent_errors"]) for r in results),
         "agent_cost_usd_per_conversation": round(sum(r["agent_cost_usd"] for r in results) / len(results), 5),
         "simulator_cost_usd_total": round(sum(r["sim_usage"]["cost_usd"] for r in results), 4),
         "seconds": round(seconds, 1),
@@ -216,7 +229,10 @@ def render(s: dict, results: list[dict]) -> str:
         f"- Persona x goal cells passing all {s['runs_per_cell']} runs (pass^{s['runs_per_cell']}): "
         f"**{s['cells_pass_all']}/{len(s['cells'])}**",
         f"- Mean caller turns: {s['mean_turns']} · agent cost per conversation: ${s['agent_cost_usd_per_conversation']:.4f}"
-        f" · simulator cost (whole run): ${s['simulator_cost_usd_total']:.2f}", "",
+        f" · simulator cost (whole run): ${s['simulator_cost_usd_total']:.2f}",
+        f"- Agent replies: {s['agent_replies']} · regenerated after a verifier rejection: {s['regenerations']} · "
+        f"template fallbacks: {s['template_fallbacks']} · conversations with model errors (e.g. rate limits): "
+        f"{s['conversations_with_model_errors']}", "",
         "| Persona \\ goal | " + " | ".join(goals) + " |", "|---" * (len(goals) + 1) + "|",
     ]
     for p in personas:
@@ -229,6 +245,8 @@ def render(s: dict, results: list[dict]) -> str:
     for r in failed:
         lines.append(f"### {r['persona']} / {r['goal']} ({r['turns']} turns, ended in {r['final_phase']})")
         lines += [f"- {f}" for f in r["failures"]]
+        if r["agent_errors"]:
+            lines.append(f"- agent model errors: {len(r['agent_errors'])} (first: {r['agent_errors'][0][:120]})")
         lines.append("")
         lines += [f"> **{t['who']}**: {t['text']}  " for t in r["transcript"]]
         lines.append("")

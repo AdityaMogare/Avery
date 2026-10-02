@@ -263,6 +263,10 @@ class SOPController:
             state.log("verified", party_id=result.party_id, matched_fields=result.matched_fields)
             d.facts.merge(facts)
             d.add("VERIFIED")
+            # "Why do you need this? Fine, here: ..." verifies in the same turn: explaining why verification is
+            # required would now contradict it (G4; found by the simulated angry caller).
+            if "EXPLAIN_VERIFICATION" in d.actions:
+                d.actions.remove("EXPLAIN_VERIFICATION")
             if state.memory.caller_role and state.memory.caller_role.value == "representative":
                 rep_name = state.memory.representative_name.value if state.memory.representative_name else None
                 rel = state.memory.representative_relationship.value if state.memory.representative_relationship else None
