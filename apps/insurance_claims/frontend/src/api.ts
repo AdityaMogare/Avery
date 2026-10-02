@@ -55,8 +55,25 @@ export type ChatResponse = {
   events: TraceEvent[];
   mode: string;
   errors: string[];
+  usage: TurnUsage;
   state: Snapshot;
 };
+
+export type TurnUsage = {
+  llm_calls?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  llm_ms?: number;
+  wall_ms?: number;
+  cost_usd?: number;
+};
+
+export function usageLabel(u?: TurnUsage): string {
+  if (!u || !u.llm_calls) return "";
+  const secs = ((u.wall_ms ?? 0) / 1000).toFixed(1);
+  const tokens = (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0);
+  return `${secs} s · ${u.llm_calls} calls · ${tokens.toLocaleString()} tok · $${(u.cost_usd ?? 0).toFixed(4)}`;
+}
 
 function headers(apiKey: string): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };

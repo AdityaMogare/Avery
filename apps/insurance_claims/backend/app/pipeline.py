@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -10,7 +11,7 @@ from .fixtures import Repository, get_repo
 from .grounding.extraction_guard import ground_understanding
 from .grounding.judge import judge_reply
 from .grounding.verifier import verify_reply
-from .llm import LLMClient, LLMError
+from .llm import USAGE_SINK, LLMClient, LLMError, summarize_usage
 from .responder import LLMResponder, ResponseDraft, TemplateResponder
 from .sop.controller import SOPController
 from .state import Message, SessionState
@@ -33,6 +34,7 @@ class TurnResult:
     mode: str
     judge: dict[str, Any] | None = None
     errors: list[str] = field(default_factory=list)
+    usage: dict[str, Any] = field(default_factory=dict)  # LLM calls, tokens, model ms, wall ms, est. cost
 
 
 class Agent:
@@ -52,6 +54,19 @@ class Agent:
         return GREETING
 
     def handle(self, state: SessionState, message: str) -> TurnResult:
+        calls: list[dict[str, Any]] = []
+        token = USAGE_SINK.set(calls)
+        started = time.perf_counter()
+        try:
+            result = self._handle(state, message)
+        finally:
+            USAGE_SINK.reset(token)
+        result.usage = {**summarize_usage(calls), "wall_ms": round((time.perf_counter() - started) * 1000)}
+        state.log("turn_usage", **{k: v for k, v in result.usage.items() if k != "by_stage"}, stages=result.usage["by_stage"])
+        result.events.append(state.trace[-1].model_dump())
+        return result
+
+    def _handle(self, state: SessionState, message: str) -> TurnResult:
         state.turn += 1
         first_event = len(state.trace)
         errors: list[str] = []

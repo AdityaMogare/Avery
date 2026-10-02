@@ -41,6 +41,12 @@ OPENAI_JUDGE_MODEL = os.getenv("OPENAI_JUDGE_MODEL") or OPENAI_MODEL
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL") or None
 
+# USD per 1M tokens, used for the per-turn cost estimate. Defaults: gpt-5.4-nano list price
+# (developers.openai.com/docs/models/gpt-5.4-nano, checked 2026-10-01).
+PRICE_INPUT_PER_M = float(os.getenv("PRICE_INPUT_PER_M", "0.20"))
+PRICE_CACHED_INPUT_PER_M = float(os.getenv("PRICE_CACHED_INPUT_PER_M", "0.02"))
+PRICE_OUTPUT_PER_M = float(os.getenv("PRICE_OUTPUT_PER_M", "1.25"))
+
 # Run the LLM groundedness judge on every live reply (adds a call per turn).
 LIVE_JUDGE = os.getenv("LIVE_JUDGE", "false").lower() == "true"
 

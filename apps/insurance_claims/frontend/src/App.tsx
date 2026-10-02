@@ -11,6 +11,7 @@ import {
   sendMessage,
   Snapshot,
   TraceEvent,
+  usageLabel,
 } from "./api";
 import { ScenarioBanner, TestCaseDrawer } from "./TestCases";
 
@@ -20,6 +21,7 @@ type Msg = {
   citations?: Citation[];
   verifierOk?: boolean;
   responder?: string;
+  usage?: string;
 };
 
 const PHASES = ["VERIFY_ID", "RESOLVE_INTENT", "PROCESS_CASE", "POST_PROCESS"];
@@ -129,6 +131,7 @@ export default function App() {
           citations: r.citations,
           verifierOk: r.verifier.ok,
           responder: String(resp?.data.responder ?? ""),
+          usage: usageLabel(r.usage),
         },
       ]);
       setMode(r.mode);
@@ -308,6 +311,7 @@ function MessageBubble({ msg }: { msg: Msg }) {
               {msg.verifierOk ? "grounded" : "verifier failed"}
             </span>
             {msg.responder && <span className="badge muted">{msg.responder}</span>}
+            {msg.usage && <span className="badge muted" title="Wall time, model calls, tokens, estimated cost (gpt-5.4-nano list price)">{msg.usage}</span>}
             {cites.length > 0 && (
               <button className="link" onClick={() => setOpen(!open)}>
                 {open ? "hide" : "show"} {cites.length} citation{cites.length > 1 ? "s" : ""}
@@ -457,6 +461,7 @@ function DebugPanel({
 
       {lastTurn && (
         <Card title={`Last turn · ${lastTurn.actions.join(" → ")}`}>
+          {usageLabel(lastTurn.usage) && <Row k="Cost / latency" v={usageLabel(lastTurn.usage)} />}
           <Row
             k="Verifier"
             v={
