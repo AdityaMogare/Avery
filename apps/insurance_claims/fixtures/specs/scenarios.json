@@ -953,6 +953,90 @@
           "2": "(didn.t|did not|does not|doesn.t) match"
         }
       }
+    },
+    {
+      "id": "edge_switch_to_auto_claim",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch (own claims only)",
+      "source": "grading doc: switching claims; fixtures give P9 four claims",
+      "description": "After discussing the denied healthcare claim, 'what about my auto claim?' switches to CL-2102 and stops talking about the healthcare denial.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my auto claim?"
+      ],
+      "expect": {
+        "selected_case": "CL-2102",
+        "phase_by_turn": {
+          "1": "PROCESS_CASE",
+          "2": "PROCESS_CASE"
+        },
+        "reply_matches_by_turn": {
+          "2": "CL-2102|auto"
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "pathology",
+            "office note"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_switch_other_same_type",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch ('other' excludes the current case)",
+      "source": "grading doc: switching claims",
+      "description": "'My other healthcare claim' means the healthcare claim that is not the one selected (CL-2011), not CL-2048 again.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my other healthcare claim?"
+      ],
+      "expect": {
+        "selected_case": "CL-2011",
+        "reply_matches_by_turn": {
+          "2": "CL-2011|closed"
+        }
+      }
+    },
+    {
+      "id": "edge_switch_ambiguous_then_pick",
+      "category": "edge_case",
+      "gate": "RESOLVE_INTENT disambiguation on switch",
+      "source": "grading doc: switching claims",
+      "description": "'My closed claim' matches two claims, so the agent asks which instead of guessing; 'the dental one' then selects CL-1899.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "Actually I wanted to ask about my closed claim.",
+        "The dental one."
+      ],
+      "expect": {
+        "selected_case": "CL-1899",
+        "phase_by_turn": {
+          "2": "RESOLVE_INTENT",
+          "3": "PROCESS_CASE"
+        },
+        "reply_matches_by_turn": {
+          "2": "CL-2011.*CL-1899|CL-1899.*CL-2011"
+        }
+      }
+    },
+    {
+      "id": "edge_switch_back",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch",
+      "source": "grading doc: switching claims",
+      "description": "Switching to the auto claim and back to the denied claim restores the right case each time.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my auto claim?",
+        "OK, back to the denied one. What documents do I need?"
+      ],
+      "expect": {
+        "selected_case": "CL-2048",
+        "reply_matches_by_turn": {
+          "3": "pathology"
+        }
+      }
     }
   ]
 }

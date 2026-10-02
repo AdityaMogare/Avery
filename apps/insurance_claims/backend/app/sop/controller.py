@@ -8,6 +8,7 @@ must phrase. The responder can never change the phase or reach data the controll
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +52,10 @@ class Decision:
     def add(self, action: str) -> None:
         if action not in self.actions:
             self.actions.append(action)
+
+
+# "my other claim", "a different one": the caller means a claim other than the one being discussed.
+OTHER_CASE = re.compile(r"\b(other|another|different|second)\b(\s+\w+){0,2}\s+(claim|one)\b", re.I)
 
 
 class SOPController:
@@ -401,20 +406,33 @@ class SOPController:
         new_question = und.followup_topics or (und.question and "?" in message)
         if und.is_done and not new_question:
             return self._offer_email(state, d, tools)
-        # Caller switched to another claim?
-        if und.case_id or und.case_type or und.case_status or und.case_month:
+        # Caller referred to a claim this turn ("what about my auto claim?", "back to the denied one", "my
+        # other one")? Match on what was said THIS turn only: memory keeps the earlier description, and
+        # mixing them produced "your denied auto claim from January" for a caller who only said "auto".
+        said = {k: v for k, v in {"case_id": und.case_id, "case_type": und.case_type, "status": und.case_status,
+                                  "month": und.case_month, "year": und.case_year}.items() if v}
+        other = bool(OTHER_CASE.search(message))
+        if said or other:
             claims = self.repo.claims_for(state.verification.party_id)
-            turn_hints = {k: s for k, s in state.memory.case_hints.items() if s.turn == state.turn}
-            scored = [(self._score(c, turn_hints, None), c) for c in claims]
-            current = next((s for s, c in scored if c["case_id"] == state.selected_case_id), float("-inf"))
-            better = [c for s, c in scored if s > max(current, 0)]
-            if len(better) == 1 and better[0]["case_id"] != state.selected_case_id:
-                state.log("case_switched", from_case=state.selected_case_id, to_case=better[0]["case_id"])
-                return self._select_case(state, und, d, tools, better[0]["case_id"], message)
-            if current == float("-inf") and better:
-                state.set_phase(Phase.RESOLVE_INTENT, "caller referred to a different claim")
-                return self._resolve_intent(state, und, d, tools, message)
-            if current == float("-inf") and not better:
+            turn_hints = {k: Slot(value=v, turn=state.turn) for k, v in said.items()}
+            matches = [c for c in claims if self._score(c, turn_hints, None) > float("-inf")
+                       and not (other and c["case_id"] == state.selected_case_id)]
+            if matches and not any(c["case_id"] == state.selected_case_id for c in matches):
+                # The new reference replaces the old description of which claim this call is about.
+                state.memory.case_hints = turn_hints
+                state.log("case_reference_changed", hints=sorted(said), other=other,
+                          candidates=[c["case_id"] for c in matches])
+                if len(matches) == 1:
+                    state.log("case_switched", from_case=state.selected_case_id, to_case=matches[0]["case_id"])
+                    d.facts.add("session.switched_from_case_id", state.selected_case_id, "session")
+                    return self._select_case(state, und, d, tools, matches[0]["case_id"], message)
+                state.set_phase(Phase.RESOLVE_INTENT, "caller referred to a different claim that matches several")
+                d.facts.merge(tools.call("list_claims"))
+                state.candidate_case_ids = [c["case_id"] for c in matches]
+                d.facts.add("resolve.candidates", state.candidate_case_ids, "session")
+                d.add("DISAMBIGUATE")
+                return d
+            if not matches:
                 # e.g. another policyholder's claim id: do not confirm or deny it exists.
                 d.facts.merge(tools.call("list_claims"))
                 state.candidate_case_ids = [c["case_id"] for c in claims]
