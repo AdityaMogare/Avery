@@ -63,7 +63,7 @@ ACTION_INSTRUCTIONS = {
     "ASK_VERIFICATION": "Ask for the remaining verification details (verification.fields_still_needed more, from verification.options_remaining). If you say you'll look at their issue after verification, cite sop.after_verification.",
     "EXPLAIN_VERIFICATION": "Explain why verification is required (verification.why) and that any 3 of the allowed fields work, offering the options. Keep moving toward verification.",
     "CLARIFY_FIELDS": "Say some details could not be read clearly (verification.unclear_fields) and ask the caller to restate them in full (dates with a 4-digit year). Do not guess or correct the values yourself.",
-    "VERIFICATION_FAILED": "Say you couldn't verify with those details (don't say which), ask them to re-check and share at least 3 details again; mention attempts remaining.",
+    "VERIFICATION_FAILED": "Say you couldn't verify with those details (don't say which). Offer both options: correct whichever detail was off (verification.correction), or share any 3 details again. Mention attempts remaining. Do not say how many more details are needed or imply they are close.",
     "VERIFICATION_LOCKED": "Say verification couldn't be completed after several attempts, so for security you're transferring them to a human.",
     "VERIFIED": "If representative.name exists, thank the representative by THAT name and say the policyholder's details were verified; otherwise thank the caller by policyholder.name and confirm they're verified.",
     "REP_NOT_AUTHORIZED": "Explain you can't find them as an authorized representative on this policy, so you can't share claim details.",
