@@ -161,6 +161,6 @@ def verify_reply(reply: str, claims: list[dict[str, Any]], facts: FactSheet, sta
                 violations.append(f"claim '{c.get('text', '')[:60]}' cites facts that do not contain {raw}")
 
     # 11. Behavioural boundary gates (commitments, outcome predictions, capabilities, state, addressing, scope).
-    violations.extend(check_gates(reply, facts, state, actions))
+    violations.extend(check_gates(reply, facts, state, actions, repo))
 
     return VerifierResult(ok=not violations, violations=sorted(set(violations)), checked_tokens=tokens)

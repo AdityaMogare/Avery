@@ -3,6 +3,7 @@
 Usage (from apps/insurance_claims/backend):
     python -m evals.run_evals                 # offline (heuristic + template), k=1
     OPENAI_API_KEY=... python -m evals.run_evals --k 3 --judge
+    python -m evals.run_evals --fixtures ../fixtures_alt   # same harness on unseen data -> report_alt.*
 Writes evals/report.md and evals/report.json.
 """
 
@@ -19,6 +20,7 @@ from pathlib import Path
 os.environ.setdefault("OUTBOX_DIR", tempfile.mkdtemp(prefix="sop-eval-outbox-"))
 
 from app.evaluation import load_scenarios, run_scenario  # noqa: E402
+from app.fixtures import Repository  # noqa: E402
 from app.grounding.factsheet import FactSheet  # noqa: E402
 from app.grounding.judge import judge_reply  # noqa: E402
 from app.llm import LLMError  # noqa: E402
@@ -33,11 +35,14 @@ def main() -> int:
     ap.add_argument("--judge", action="store_true", help="run the LLM groundedness judge on every reply")
     ap.add_argument("--only", nargs="*", help="scenario ids")
     ap.add_argument("--offline", action="store_true", help="ignore OPENAI_API_KEY")
+    ap.add_argument("--fixtures", type=Path, help="alternate fixtures dir (with specs/scenarios.json)")
     args = ap.parse_args()
 
     key = None if args.offline else os.getenv("OPENAI_API_KEY")
-    agent = Agent(api_key=key)
-    scenarios = [s for s in load_scenarios() if not args.only or s["id"] in args.only]
+    fixtures = args.fixtures.resolve() if args.fixtures else None
+    agent = Agent(api_key=key, repo=Repository(fixtures) if fixtures else None)
+    scenarios = [s for s in load_scenarios(fixtures) if not args.only or s["id"] in args.only]
+    stem = "report" + (f"_{fixtures.name.removeprefix('fixtures_')}" if fixtures else "")
     rows, totals = [], {"claims": 0, "supported": 0, "regenerations": 0, "fallbacks": 0, "turns": 0}
     started = time.time()
 
@@ -80,13 +85,13 @@ def main() -> int:
         print(f"{'PASS' if passed == args.k else 'FAIL'}  {spec['id']}  ({passed}/{args.k})", flush=True)
 
     summary = {
-        "mode": agent.mode, "judge_model": agent.judge_llm.model if agent.judge_llm else None, "k": args.k, "judge": bool(args.judge and agent.llm),
+        "mode": agent.mode, "fixtures": fixtures.name if fixtures else "fixtures", "judge_model": agent.judge_llm.model if agent.judge_llm else None, "k": args.k, "judge": bool(args.judge and agent.llm),
         "scenarios": len(rows), "pass_k": sum(r["pass_k"] for r in rows),
         "faithfulness": (totals["supported"] / totals["claims"]) if totals["claims"] else None,
         **totals, "seconds": round(time.time() - started, 1),
     }
-    (OUT / "report.json").write_text(json.dumps({"summary": summary, "scenarios": rows}, indent=2))
-    (OUT / "report.md").write_text(render_md(summary, rows))
+    (OUT / f"{stem}.json").write_text(json.dumps({"summary": summary, "scenarios": rows}, indent=2))
+    (OUT / f"{stem}.md").write_text(render_md(summary, rows))
     print(json.dumps(summary, indent=2))
     return 0 if summary["pass_k"] == summary["scenarios"] else 1
 
@@ -95,7 +100,7 @@ def render_md(summary: dict, rows: list[dict]) -> str:
     faith = f"{summary['faithfulness']:.3f}" if summary["faithfulness"] is not None else "n/a (judge off)"
     lines = [
         "# Eval report", "",
-        f"- Mode: `{summary['mode']}`, trials per scenario k={summary['k']}",
+        f"- Mode: `{summary['mode']}`, fixtures `{summary['fixtures']}`, trials per scenario k={summary['k']}",
         f"- pass^{summary['k']}: **{summary['pass_k']}/{summary['scenarios']}** scenarios",
         f"- Judge faithfulness (supported/total atomic claims): **{faith}** ({summary['supported']}/{summary['claims']})",
         f"- Replies: {summary['turns']} · regenerated after verifier rejection: {summary['regenerations']} · "
