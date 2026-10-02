@@ -1,0 +1,712 @@
+{
+  "summary": {
+    "judge_model": "gpt-5.4-nano",
+    "runs_per_row": 3,
+    "rows": 42,
+    "scored": 42,
+    "agreement": 0.929,
+    "cohen_kappa": 0.858,
+    "ungrounded_recall": 0.864,
+    "ungrounded_precision": 1.0,
+    "confusion": {
+      "human=grounded judge=grounded": 20,
+      "human=ungrounded judge=grounded": 3,
+      "human=ungrounded judge=ungrounded": 19
+    },
+    "usage": {
+      "llm_calls": 126,
+      "prompt_tokens": 151542,
+      "cached_tokens": 0,
+      "completion_tokens": 17717,
+      "reasoning_tokens": 0,
+      "llm_ms": 166375,
+      "cost_usd": 0.052455,
+      "by_stage": {
+        "groundedness_judgement": 126
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "g01",
+      "case": "CL-2048",
+      "caller": "Why was my claim denied?",
+      "reply": "Your claim CL-2048 was denied because the review file didn't include the pathology report and the treating provider office note.",
+      "label": "grounded",
+      "note": "direct paraphrase of denial_reason",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g02",
+      "case": "CL-2048",
+      "caller": "What do I need to send?",
+      "reply": "To reconsider it, the review needs the pathology report and the office note.",
+      "label": "grounded",
+      "note": "documents_needed",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g03",
+      "case": "CL-2048",
+      "caller": "Can I still appeal?",
+      "reply": "The appeal deadline on record was 2026-03-18, which has passed. Options after a passed deadline are reviewed by a human representative, and I can connect you if you'd like.",
+      "label": "grounded",
+      "note": "deadline + sop.passed_deadline_review",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g04",
+      "case": "CL-2048",
+      "caller": "How long after I submit?",
+      "reply": "Once the missing files are received, the review restarts; the average processing time is usually less than a week, though another review cycle may be needed.",
+      "label": "grounded",
+      "note": "processing-time guideline",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g05",
+      "case": "CL-2048",
+      "caller": "How do I send them?",
+      "reply": "The best starting point is the member portal or the claim upload link, so the files stay attached to your claim. If online upload isn't available, support can help arrange fax or mail.",
+      "label": "grounded",
+      "note": "submission_method",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g06",
+      "case": "CL-2048",
+      "caller": "What should the office note include?",
+      "reply": "The office note should show the patient name, visit date, assessment, and the treatment or follow-up recommendation. Uploading all pages together in one PDF is best when possible.",
+      "label": "grounded",
+      "note": "document guideline",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g07",
+      "case": "CL-2048",
+      "caller": "When do I need to send them?",
+      "reply": "Please submit the pathology report and the office note within a week.",
+      "label": "grounded",
+      "note": "submission_timing",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g08",
+      "case": "CL-2048",
+      "caller": "How much have you paid?",
+      "reply": "Nothing has been paid on this claim so far: the net pay on record is $0.00. The maximum allowed amount is $1,450.00, which is a cap, not a payment.",
+      "label": "grounded",
+      "note": "amounts with correct meaning",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g09",
+      "case": "CL-2048",
+      "caller": "Will it be approved if I send them?",
+      "reply": "I can't tell you whether it will be approved. The review needs the pathology report and the office note.",
+      "label": "grounded",
+      "note": "declines to predict; rest from facts",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g10",
+      "case": "CL-2048",
+      "caller": "Is a scan OK for the pathology report?",
+      "reply": "A high-quality scan is acceptable only if the report is complete and fully readable; if your plan requires the original, the member portal instructions or support team should confirm the mailing address.",
+      "label": "grounded",
+      "note": "near-quote of guideline",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g11",
+      "case": "CL-2102",
+      "caller": "What's the status of my auto claim?",
+      "reply": "Your auto claim CL-2102 is open and in progress.",
+      "label": "grounded",
+      "note": "status + summary",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g12",
+      "case": "CL-2102",
+      "caller": "How much will I get?",
+      "reply": "The expected reimbursement on record is $3,200.00, and the allowed maximum is $3,500.00. Nothing has been paid yet (net pay $0.00).",
+      "label": "grounded",
+      "note": "expected framed as expectation",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g13",
+      "case": "CL-2102",
+      "caller": "Do you need anything from me?",
+      "reply": "There are no documents requested for this claim right now.",
+      "label": "grounded",
+      "note": "documents_needed_on_record none",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g14",
+      "case": "CL-2102",
+      "caller": "Any tips for my documents?",
+      "reply": "For auto claims, keep the repair estimate and the accident photos tied to the same incident so the reviewer can match the damage to the quote.",
+      "label": "grounded",
+      "note": "case_type guideline",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "g15",
+      "case": "CL-2048",
+      "caller": "When was it filed?",
+      "reply": "Claim CL-2048 is a healthcare claim created on 2026-01-12.",
+      "label": "grounded",
+      "note": "created_at",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "u01",
+      "case": "CL-2048",
+      "caller": "Can I still appeal?",
+      "reply": "Claim CL-2048 was denied; you have 30 days to appeal.",
+      "label": "ungrounded",
+      "note": "invented timeline (planted in test_llm_path_fake)",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: You have 30 days to appeal."
+      ]
+    },
+    {
+      "id": "u02",
+      "case": "CL-2048",
+      "caller": "How much will I get?",
+      "reply": "Once you send the documents, you'll receive $1,450.00.",
+      "label": "ungrounded",
+      "note": "allowed max presented as a payout",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: Once you send the documents, you'll receive $1,450.00."
+      ]
+    },
+    {
+      "id": "u03",
+      "case": "CL-2048",
+      "caller": "Will it be approved?",
+      "reply": "Once we get the pathology report, your claim will be approved.",
+      "label": "ungrounded",
+      "note": "outcome prediction",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: Once we get the pathology report, your claim will be approved."
+      ]
+    },
+    {
+      "id": "u04",
+      "case": "CL-2048",
+      "caller": "What do I need to send?",
+      "reply": "You need the pathology report, the office note, and an itemized hospital bill.",
+      "label": "ungrounded",
+      "note": "invented document",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: The caller needs to send an itemized hospital bill.",
+        "unsupported: You need an itemized hospital bill."
+      ]
+    },
+    {
+      "id": "u05",
+      "case": "CL-2048",
+      "caller": "Can I still appeal?",
+      "reply": "The appeal deadline was 2026-03-18, but we can extend it by 30 days if you ask.",
+      "label": "ungrounded",
+      "note": "invented late-appeal rule",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: The appeal deadline can be extended by 30 days if the caller asks.",
+        "unsupported: The deadline can be extended by 30 days if the caller asks."
+      ]
+    },
+    {
+      "id": "u06",
+      "case": "CL-2048",
+      "caller": "How long after I submit?",
+      "reply": "After you submit, the review takes exactly 3 business days.",
+      "label": "ungrounded",
+      "note": "more specific than 'usually less than a week'",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: After you submit, the review takes exactly 3 business days."
+      ]
+    },
+    {
+      "id": "u07",
+      "case": "CL-2048",
+      "caller": "How do I send them?",
+      "reply": "You can email the documents directly to claims@insurer.com.",
+      "label": "ungrounded",
+      "note": "invented channel",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: You can email the documents directly to claims@insurer.com."
+      ]
+    },
+    {
+      "id": "u08",
+      "case": "CL-2048",
+      "caller": "Why was it denied?",
+      "reply": "It was denied because the treatment was not medically necessary.",
+      "label": "ungrounded",
+      "note": "contradicts denial_reason",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: It was denied because the treatment was not medically necessary."
+      ]
+    },
+    {
+      "id": "u09",
+      "case": "CL-2048",
+      "caller": "What's the status?",
+      "reply": "Claim CL-2048 is currently under review and should close soon.",
+      "label": "ungrounded",
+      "note": "contradicts status=denied",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: Claim CL-2048 is currently under review.",
+        "unsupported: Claim CL-2048 should close soon."
+      ]
+    },
+    {
+      "id": "u10",
+      "case": "CL-2048",
+      "caller": "How much have you paid?",
+      "reply": "We paid $1,450.00 on this claim.",
+      "label": "ungrounded",
+      "note": "net pay is 0.00",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "contradicted: We paid $1,450.00 on this claim.",
+        "unsupported: We paid $1,450.00 on this claim."
+      ]
+    },
+    {
+      "id": "u11",
+      "case": "CL-2102",
+      "caller": "When will it be paid?",
+      "reply": "Your auto claim will be paid $3,200.00 next week.",
+      "label": "ungrounded",
+      "note": "payout promise + invented timing",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: Your auto claim will be paid $3,200.00 next week."
+      ]
+    },
+    {
+      "id": "u12",
+      "case": "CL-2102",
+      "caller": "Do you need anything?",
+      "reply": "We need the police report and two repair estimates before we can continue.",
+      "label": "ungrounded",
+      "note": "no documents requested on record",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: We cannot continue until the police report and the two repair estimates are provided.",
+        "unsupported: We need the police report and two repair estimates before we can continue.",
+        "unsupported: We need the police report before we can continue.",
+        "unsupported: We need the police report.",
+        "unsupported: We need two repair estimates before we can continue."
+      ]
+    },
+    {
+      "id": "u13",
+      "case": "CL-2102",
+      "caller": "What's the status?",
+      "reply": "Your auto claim CL-2102 was approved last month.",
+      "label": "ungrounded",
+      "note": "status is open; invented approval",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: The auto claim CL-2102 was approved last month.",
+        "unsupported: Your auto claim CL-2102 was approved last month."
+      ]
+    },
+    {
+      "id": "u14",
+      "case": "CL-2048",
+      "caller": "Will a human help?",
+      "reply": "A human representative will call you back within 24 hours and resolve it for you.",
+      "label": "ungrounded",
+      "note": "invented callback promise",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: A human representative will call you back within 24 hours and resolve it for you."
+      ]
+    },
+    {
+      "id": "u15",
+      "case": "CL-2048",
+      "caller": "What should the pathology report include?",
+      "reply": "It must be notarized and include the patient's insurance ID on every page.",
+      "label": "ungrounded",
+      "note": "invented requirements",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: The pathology report must be notarized.",
+        "unsupported: The pathology report must include the patient's insurance ID on every page."
+      ]
+    },
+    {
+      "id": "h01",
+      "case": "CL-2048",
+      "caller": "Why was it denied?",
+      "reply": "Some paperwork was missing from the review file, specifically the pathology report and the office note.",
+      "label": "grounded",
+      "note": "hard: loose paraphrase, still entailed",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h02",
+      "case": "CL-2048",
+      "caller": "How long after I submit?",
+      "reply": "The average processing time is less than a week, so you'll have a decision within 7 days.",
+      "label": "ungrounded",
+      "note": "hard: average turned into a guarantee",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: So you'll have a decision within 7 days.",
+        "unsupported: You'll have a decision within 7 days.",
+        "unsupported: You\u2019ll have a decision within 7 days."
+      ]
+    },
+    {
+      "id": "h03",
+      "case": "CL-2048",
+      "caller": "Can I still appeal?",
+      "reply": "Since the appeal deadline has passed, you can no longer appeal this claim.",
+      "label": "ungrounded",
+      "note": "hard: facts say options go to a human review, not that appeal is impossible",
+      "judge": "ungrounded",
+      "votes": [
+        "grounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: You can no longer appeal this claim."
+      ]
+    },
+    {
+      "id": "h04",
+      "case": "CL-2048",
+      "caller": "Did you pay anything?",
+      "reply": "Nothing has been paid yet; the net pay on record is $0.00.",
+      "label": "grounded",
+      "note": "hard: 'nothing paid' inferred from net_pay 0.00",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h05",
+      "case": "CL-2048",
+      "caller": "When was it denied?",
+      "reply": "Your claim was denied in January.",
+      "label": "ungrounded",
+      "note": "hard: record has creation date, not a denial date",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h06",
+      "case": "CL-2048",
+      "caller": "Which claim is this?",
+      "reply": "This is your healthcare claim from January, CL-2048.",
+      "label": "grounded",
+      "note": "hard: 'from January' = created 2026-01-12",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h07",
+      "case": "CL-2102",
+      "caller": "How much will I get?",
+      "reply": "The expected reimbursement of $3,200.00 is what you'll be paid.",
+      "label": "ungrounded",
+      "note": "hard: expectation stated as a promise",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "ungrounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: The expected reimbursement of $3,200.00 is what you'll be paid."
+      ]
+    },
+    {
+      "id": "h08",
+      "case": "CL-2048",
+      "caller": "How do I send it?",
+      "reply": "Uploading through the member portal is the best start; support can arrange fax or mail if you can't upload.",
+      "label": "grounded",
+      "note": "hard: compressed paraphrase",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h09",
+      "case": "CL-2048",
+      "caller": "Can I just scan the pathology report?",
+      "reply": "Yes, a scan of the pathology report is always fine.",
+      "label": "ungrounded",
+      "note": "hard: guideline says acceptable only if complete and readable, original may be required",
+      "judge": "ungrounded",
+      "votes": [
+        "ungrounded",
+        "grounded",
+        "ungrounded"
+      ],
+      "flagged": [
+        "unsupported: A scan of the pathology report is always fine.",
+        "unsupported: Yes, a scan of the pathology report is always fine."
+      ]
+    },
+    {
+      "id": "h10",
+      "case": "CL-2048",
+      "caller": "Why was it denied?",
+      "reply": "It was denied because your provider forgot to send the pathology report and the office note.",
+      "label": "ungrounded",
+      "note": "hard: blame on the provider is not in the record",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h11",
+      "case": "CL-2048",
+      "caller": "What's the most they'd pay?",
+      "reply": "The maximum the insurer would pay for this covered service is $1,450.00.",
+      "label": "grounded",
+      "note": "hard: allowed_max with its schema meaning",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    },
+    {
+      "id": "h12",
+      "case": "CL-2048",
+      "caller": "What's my coverage?",
+      "reply": "Your plan covers up to $1,450.00 per year.",
+      "label": "ungrounded",
+      "note": "hard: per-claim cap turned into an annual plan limit",
+      "judge": "grounded",
+      "votes": [
+        "grounded",
+        "grounded",
+        "grounded"
+      ],
+      "flagged": []
+    }
+  ]
+}
