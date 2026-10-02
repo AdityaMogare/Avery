@@ -85,16 +85,21 @@ class TemplateResponder:
                 "Could you share that again in full (for a date of birth, please include the 4-digit year)?",
                 "verification.unclear_fields")
         if "VERIFICATION_FAILED" in a:
-            say(f"I wasn't able to verify your identity with those details. Please double-check and share at least 3 of: "
-                f"{v('verification.options_remaining')}. You have {v('verification.attempts_remaining')} attempt(s) remaining.",
-                "verification.options_remaining", "verification.attempts_remaining")
+            say(f"I wasn't able to verify your identity with those details. If one of them was off, you can just correct "
+                f"it, or share at least 3 of: {v('verification.options_remaining')}. You have "
+                f"{v('verification.attempts_remaining')} attempt(s) remaining.",
+                "verification.correction", "verification.options_remaining", "verification.attempts_remaining")
         if "ASK_VERIFICATION" in a:
             if "caller.case_hint" in f:
                 say(f"I've noted that you're calling about your {v('caller.case_hint')}, and I'll look at it as soon as you're verified.",
                     "caller.case_hint", "sop.after_verification")
             need, have = v("verification.fields_still_needed"), v("verification.fields_received")
             opts = v("verification.options_remaining")
-            if have in ("", "0") and "EXPLAIN_VERIFICATION" in a:
+            if "verification.last_attempt" in f and have in ("", "0"):
+                say("The details you gave didn't match our records, and for your security I can't say which one. "
+                    f"If one was off, you can just correct it, or share any 3 of: {opts}.",
+                    "verification.last_attempt", "verification.correction", "verification.options_remaining")
+            elif have in ("", "0") and "EXPLAIN_VERIFICATION" in a:
                 say(f"You can verify with any 3 of: {opts}.", "verification.options_remaining")
             elif have in ("", "0"):
                 say(f"To protect your information, I first need to verify your identity. Please share any 3 of: {opts}.",

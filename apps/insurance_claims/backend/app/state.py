@@ -77,6 +77,9 @@ class Verification(BaseModel):
     matched_fields: list[str] = Field(default_factory=list)
     failed_attempts: int = 0
     failed_signatures: list[str] = Field(default_factory=list)
+    # Fields from the last failed attempt, so a caller can correct one detail without repeating all of
+    # them. Never shown to the caller or the debug UI.
+    retained_pii: dict[str, Slot] = Field(default_factory=dict)
 
 
 class Consent(BaseModel):

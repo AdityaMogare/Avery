@@ -151,7 +151,7 @@ def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list
     # G7: references to the conversation must be backed by the conversation.
     caller_text = " ".join(m.content.casefold() for m in state.transcript if m.role == "user")
     has_context_fact = any(f.source == "caller" for f in facts.facts.values()) or bool(
-        state.memory.case_hints or state.memory.intent or state.memory.pii)
+        state.memory.case_hints or state.memory.intent or state.memory.pii or state.verification.retained_pii)
     for sentence in re.split(r"(?<=[.!?])\s+", reply):
         if not CONTEXT_REFERENCE.search(sentence):
             continue

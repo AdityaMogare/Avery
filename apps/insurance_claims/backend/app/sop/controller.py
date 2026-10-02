@@ -137,6 +137,9 @@ class SOPController:
         for fname, value in {"name": und.full_name, "dob": und.dob, "phone": und.phone,
                              "email": und.email, "id_last4": und.id_last4}.items():
             if value and (fname not in m.pii or m.pii[fname].value != value):
+                previous = m.pii.get(fname) or state.verification.retained_pii.get(fname)
+                if previous and previous.value != value:
+                    state.log("field_corrected", field=fname)  # field name only, never the values
                 m.pii[fname] = Slot(value=value, turn=t)
                 changed[fname] = "<redacted>"
         for key, value in {"policy_number": und.policy_number, "caller_role": und.caller_role,
@@ -223,6 +226,12 @@ class SOPController:
             d.add("CLARIFY_FIELDS")
             d.facts.add("verification.unclear_fields", unclear, "caller")
 
+        # A correction after a failed match ("sorry, my DOB is ...") re-uses the other fields from that
+        # attempt. Only new identity input re-runs the match; a bare "why?" does not.
+        fresh = [s for s in state.memory.pii.values() if s.turn == state.turn]
+        if v.retained_pii and 0 < len(fresh) < config.MIN_VERIFIED_FIELDS:
+            for f, slot in v.retained_pii.items():
+                state.memory.pii.setdefault(f, slot)
         provided = {k: s.value for k, s in state.memory.pii.items()}
         policy = state.memory.policy_number.value if state.memory.policy_number else None
         if len(provided) < config.MIN_VERIFIED_FIELDS:
@@ -234,6 +243,7 @@ class SOPController:
         result = tools._last_verification
         if result.outcome == "verified":
             v.status, v.party_id, v.matched_fields = "verified", result.party_id, result.matched_fields
+            v.retained_pii = {}
             state.log("verified", party_id=result.party_id, matched_fields=result.matched_fields)
             d.facts.merge(facts)
             d.add("VERIFIED")
@@ -260,6 +270,7 @@ class SOPController:
         if signature not in v.failed_signatures:
             v.failed_signatures.append(signature)
             v.failed_attempts += 1
+        v.retained_pii = dict(state.memory.pii)
         state.memory.pii.clear()
         state.log("verification_failed", attempts=v.failed_attempts)
         if v.failed_attempts >= config.MAX_FAILED_VERIFICATIONS:
@@ -268,6 +279,8 @@ class SOPController:
             d.add("VERIFICATION_LOCKED")
             return self._transfer(state, tools, d, "identity could not be verified after several attempts")
         d.add("VERIFICATION_FAILED")
+        d.facts.add("verification.correction", "the caller can correct any single detail they gave; the "
+                    "other details from this attempt are kept for the next check", "session")
         d.facts.add("verification.attempts_remaining", config.MAX_FAILED_VERIFICATIONS - v.failed_attempts, "session")
         self._ask_verification_facts(state, d, after_failure=True)
         return d
@@ -285,6 +298,11 @@ class SOPController:
                     "described", "session")
         d.facts.add("verification.why", "claim details are protected health and financial information, and "
                     "verifying identity keeps them from being shared with the wrong person", "session")
+        if state.verification.retained_pii and not after_failure:
+            d.facts.add("verification.last_attempt", "the details from the last attempt did not match our records; "
+                        "for security the agent does not say which detail", "session")
+            d.facts.add("verification.correction", "the caller can correct any single detail they gave; the "
+                        "other details from that attempt are kept for the next check", "session")
 
     def _consent_step(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox) -> Decision:
         d.facts.merge(tools.call("check_consent"))
