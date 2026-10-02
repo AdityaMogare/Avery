@@ -206,6 +206,8 @@ class HeuristicUnderstander:
         if "denied" in low or "denial" in low or "rejected" in low:
             u.case_status = "denied"
             u.intent = "denial_question"
+        elif re.search(r"\b(how much|amount|paid|payout|reimburs\w*|maximum|allowed)\b", low):
+            u.intent = "payment_question"
         elif "status" in low:
             u.intent = "status_inquiry"
         for i, month in enumerate(MONTHS, 1):
@@ -227,7 +229,8 @@ class HeuristicUnderstander:
         has_identity = any([u.email, u.dob, u.phone, u.id_last4, u.full_name, u.policy_number])
         if any(h in low for h in OFF_TOPIC_HINTS) and not has_identity:
             u.is_off_topic = True
-        elif ("?" in text and len(low.split()) >= 4 and not has_identity and not any(w in low for w in DOMAIN_WORDS)
+        elif ("?" in text and len(low.split()) >= 4 and not has_identity and not u.intent
+              and not any(w in low for w in DOMAIN_WORDS)
               and not _META_QUESTION.search(low)):
             u.is_off_topic = True
 

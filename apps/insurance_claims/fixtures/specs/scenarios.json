@@ -1037,6 +1037,105 @@
           "3": "pathology"
         }
       }
+    },
+    {
+      "id": "edge_amount_allowed_max",
+      "category": "edge_case",
+      "gate": "G9 amount meaning (ANSWER_AMOUNTS)",
+      "source": "grading doc: amount questions; claim_schema.json field meanings",
+      "description": "Asked for the allowed maximum, the agent gives $1,450.00 as a cap, never as a payment.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What's the maximum allowed amount on this claim?"
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "1,?450"
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "you will get",
+            "you'll get",
+            "you will receive",
+            "you'll receive",
+            "will be paid"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_amount_paid_on_denied",
+      "category": "edge_case",
+      "gate": "G9 amount meaning (net pay vs allowed max)",
+      "source": "grading doc: amount questions",
+      "description": "Asked what was paid on a denied claim, the agent states the net pay on record ($0.00), not the allowed maximum.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "How much have you paid me on this claim so far?"
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "0\\.00|nothing|not (been )?paid|no payment"
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_amount_open_auto_no_promise",
+      "category": "edge_case",
+      "gate": "G2 + G9 (expected reimbursement is not a promise)",
+      "source": "grading doc: amount questions",
+      "description": "On the open auto claim, 'how much will I get?' gets the expected reimbursement framed as an expectation, with no payout promise.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I have a question about my auto claim.",
+        "How much will I get for it?"
+      ],
+      "expect": {
+        "selected_case": "CL-2102",
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "you will get",
+            "you'll get",
+            "you will receive",
+            "you'll receive",
+            "will be paid",
+            "guarantee"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G1",
+            "G2",
+            "G9"
+          ]
+        }
+      }
     }
   ]
 }
