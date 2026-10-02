@@ -1,0 +1,45 @@
+flowchart LR
+    subgraph Client["Vite React SPA (served by FastAPI)"]
+        Chat[Chat pane]
+        Debug["SOP debug panel<br/>phase · verification · memory<br/>tool trace · citations · email preview"]
+        Key[API key field]
+    end
+
+    subgraph Server["FastAPI (single container, port 8000)"]
+        API["/api/session · /api/chat · /api/session/{id}"]
+        subgraph Pipeline["TurnPipeline (app/pipeline.py)"]
+            U["1. Understand<br/>LLM structured output → TurnUnderstanding<br/>(heuristic offline / on error)"]
+            M["2. Merge memory<br/>slots + turn provenance"]
+            C["3. SOP controller<br/>deterministic phase + gates"]
+            T["4. Phase-gated tools → FactSheet"]
+            R["5. Respond<br/>LLM, phase prompt, cites fact IDs"]
+            V["6. Grounding verifier<br/>regen once → template fallback"]
+            L["7. Append event trace"]
+        end
+        Store[(SessionState<br/>in-memory)]
+        Outbox[(outbox/*.json<br/>mock email)]
+    end
+
+    subgraph Data["fixtures/ (read-only)"]
+        PH[policyholders.json]
+        CL[claims.json]
+        REP[representatives.json]
+        CON[consent_scenarios.json]
+        GUIDE[required_document_guideline.json]
+        SPEC[specs/scenarios.json]
+    end
+
+    OpenAI[(OpenAI API<br/>OPENAI_API_KEY / OPENAI_MODEL)]
+
+    Chat --> API
+    Key --> API
+    API --> U --> M --> C --> T --> R --> V --> L --> API
+    API --> Debug
+    U <--> OpenAI
+    R <--> OpenAI
+    V -. optional LLM judge .-> OpenAI
+    M <--> Store
+    C <--> Store
+    L --> Store
+    T --> PH & CL & REP & CON & GUIDE
+    T --> Outbox

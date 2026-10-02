@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph Runtime["Runtime (every turn)"]
+        F[FactSheet<br/>claim_record · guideline · schema · session · caller · derived]
+        D[LLM draft reply + cited fact IDs]
+        V1{Deterministic verifier}
+        F --> V1
+        D --> V1
+        V1 -->|case IDs, money, dates, durations,<br/>doc names, PII, citations OK| G{Boundary gates G1-G6<br/>commitments · outcomes · capabilities<br/>state · addressing · scope}
+        G -->|pass| Send[Send reply]
+        G -->|violation| Regen
+        V1 -->|violation| Regen[Regenerate once] --> V1b{verify} -->|fail| Tmpl[Template fallback] --> Send
+        V1b -->|ok| Send
+    end
+
+    subgraph Offline["Test & eval layers"]
+        L1["L1 unit tests<br/>verification · tool gates · planted hallucinations"]
+        L2["L2 scenario specs (fixtures/specs/scenarios.json)<br/>offline: heuristic + template"]
+        L3["L3 trace properties (AgentLTL-style)<br/>no claim tool / disclosure before verified,<br/>no cross-party, legal phase order, email after offer"]
+        L4["L4 live LLM runs + groundedness judge<br/>enumerate claims → supported? · pass^k"]
+    end
+
+    Send --> Trace[(Event trace)]
+    Trace --> L3
+    L2 --> L3
+    L4 --> L3

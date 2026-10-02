@@ -1,0 +1,50 @@
+stateDiagram-v2
+    [*] --> VERIFY_ID
+
+    state VERIFY_ID {
+        [*] --> Collecting
+        Collecting --> Collecting: partial PII (hints stored, nothing disclosed)
+        Collecting --> RepConsent: verified caller is an authorized representative
+        RepConsent --> RepConsent: consent pending
+        Collecting --> Verified: ≥3 PII fields match one record, 0 conflicts
+        RepConsent --> Verified: consent approved
+        Collecting --> Locked: 3 distinct failed attempts
+    }
+
+    VERIFY_ID --> RESOLVE_INTENT: Verified
+    VERIFY_ID --> HUMAN_TRANSFER: Locked / consent timeout / caller accepts transfer
+
+    state RESOLVE_INTENT {
+        [*] --> RankByHints
+        RankByHints --> AutoSelect: single strong match or only one claim
+        RankByHints --> Disambiguate: tie between candidates
+        RankByHints --> AskIntent: no hints remembered
+        Disambiguate --> AutoSelect
+        AskIntent --> AutoSelect
+    }
+
+    RESOLVE_INTENT --> PROCESS_CASE: case selected
+    PROCESS_CASE --> PROCESS_CASE: grounded follow-ups<br/>(status, denial, docs, timing)
+    PROCESS_CASE --> RESOLVE_INTENT: caller refers to another own claim
+    PROCESS_CASE --> HUMAN_TRANSFER: doc alternatives exhausted + caller accepts
+    PROCESS_CASE --> POST_PROCESS: caller is done
+
+    state POST_PROCESS {
+        [*] --> OfferEmail
+        OfferEmail --> SendEmail: caller chooses send
+        OfferEmail --> Skip: caller chooses skip
+    }
+
+    POST_PROCESS --> PROCESS_CASE: new claim question
+    POST_PROCESS --> ENDED
+    ENDED --> PROCESS_CASE: verified caller reopens
+    HUMAN_TRANSFER --> [*]
+    ENDED --> [*]
+
+    note right of VERIFY_ID
+        Global guards (every phase):
+        off-topic → refuse; 3 in a row → offer human
+        injection / authority claim → refuse, stay in phase
+        negative emotion → empathy first, explain why
+        wants_human → transfer immediately
+    end note

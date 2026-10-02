@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/outbox
+**/.env
+.git
+**/.DS_Store
+apps/insurance_claims/backend/evals/report.*

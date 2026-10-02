@@ -1,0 +1,16 @@
+# deps / builds
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# runtime
+apps/insurance_claims/backend/outbox/
+.env
+# os / editors
+.DS_Store
+.idea/
+.vscode/
+# submission artifact
+*.zip
