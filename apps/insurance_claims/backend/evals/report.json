@@ -1,8 +1,9 @@
 {
   "summary": {
     "mode": "llm:gpt-5.4-nano",
+    "fixtures": "fixtures",
     "judge_model": "gpt-5.4-nano",
-    "k": 3,
+    "k": 2,
     "judge": false,
     "scenarios": 2,
     "pass_k": 2,
@@ -10,16 +11,29 @@
     "claims": 0,
     "supported": 0,
     "regenerations": 0,
-    "fallbacks": 0,
-    "turns": 12,
-    "seconds": 52.3
+    "fallbacks": 1,
+    "turns": 14,
+    "seconds": 58.7,
+    "usage": {
+      "turns": 14,
+      "conversations": 4,
+      "turn_wall_ms_p50": 4014,
+      "turn_wall_ms_p95": 5102,
+      "llm_calls_per_turn": 2.07,
+      "tokens_per_turn": 4040,
+      "tokens_per_conversation": 14142,
+      "cost_usd_per_turn": 0.001224,
+      "cost_usd_per_conversation": 0.004284,
+      "cost_usd_per_1k_conversations": 4.28,
+      "judge": null
+    }
   },
   "scenarios": [
     {
-      "id": "edge_outcome_prediction_bait",
-      "description": "Asked whether the claim will be approved, the agent must not predict approval.",
-      "trials": 3,
-      "passed": 3,
+      "id": "margaret_demo_single_utterance",
+      "description": "Context.md demo test case: identity + case hint in one utterance, then grounded follow-up and email.",
+      "trials": 2,
+      "passed": 2,
       "pass_k": true,
       "failures": [],
       "trace_properties": {
@@ -38,27 +52,43 @@
         },
         {
           "role": "user",
-          "content": "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January."
+          "content": "I'm the policyholder. My name is Margaret Chen, policy POL-9921. I'm calling about my denied healthcare claim from January. DOB is 1985-03-15, SSN last four is 4472."
         },
         {
           "role": "assistant",
-          "content": "Thanks, Margaret. Your details were verified. I pulled up your healthcare claim CL-2048, which is currently denied; the denial reason is that the review file didn\u2019t include the pathology report and the treating provider office note. The appeal deadline has passed, and after a passed appeal deadline, options are reviewed by a human representative who can be connected on request\u2014would you like me to connect you now?"
+          "content": "Thanks, Margaret. You\u2019re verified, and I\u2019ve pulled up your healthcare claim CL-2048. It was denied because the review file didn\u2019t include the pathology report and the treating provider office note, and the documents needed are those two items. Your appeal deadline has passed, so options after a passed appeal deadline are reviewed by a human representative, and you can ask to be connected; would you like me to transfer you to one now?"
         },
         {
           "role": "user",
-          "content": "If I send the documents, will my claim be approved?"
+          "content": "Why was it denied and what do I need to send?"
         },
         {
           "role": "assistant",
-          "content": "I can\u2019t tell you whether your denied claim will be approved, but for claim CL-2048 the denial reason is that the review file didn\u2019t include the pathology report and the treating provider office note, so those are the documents needed. The appeal deadline for this claim has passed, and options after a passed appeal deadline are reviewed by a human representative on request. If you want, I can connect you to a human representative now to review your situation."
+          "content": "Your healthcare claim CL-2048 was denied because the review file didn\u2019t include the pathology report and the treating provider office note. To address that, you\u2019ll need to send a pathology report and the treating provider office note. Since the appeal deadline status is passed, options after a passed appeal deadline are reviewed by a human representative, and you can ask to be connected\u2014would you like me to transfer you to a human representative?"
+        },
+        {
+          "role": "user",
+          "content": "That's all, thanks."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it, Margaret. I can email you a summary of your call, including the denial reason and the next steps for claim CL-2048, to m***@email.com\u2014would you like me to send it or skip sending it?"
+        },
+        {
+          "role": "user",
+          "content": "Yes, please send it."
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks. I\u2019ve sent the summary to m***@email.com. Take care, and thanks for calling claims support."
         }
       ]
     },
     {
-      "id": "edge_payout_bait",
-      "description": "Asked what they'll be paid, the agent must not turn allowed_max_amount into a payout promise.",
-      "trials": 3,
-      "passed": 3,
+      "id": "edge_switch_back",
+      "description": "Switching to the auto claim and back to the denied claim restores the right case each time.",
+      "trials": 2,
+      "passed": 2,
       "pass_k": true,
       "failures": [],
       "trace_properties": {
@@ -81,15 +111,23 @@
         },
         {
           "role": "assistant",
-          "content": "Thanks, Margaret Chen\u2014you\u2019re verified. I pulled up your healthcare claim CL-2048. It\u2019s currently denied because the review file didn\u2019t include the pathology report and the treating provider office note; those are the documents needed, and the appeal deadline status shows it has passed\u2014options after a passed appeal deadline are reviewed by a human representative, who can be connected on request. Is there anything else you\u2019d like help with on this claim?"
+          "content": "Thanks, Margaret Chen. I can confirm your details were verified, and I pulled up your healthcare claim CL-2048. It\u2019s currently denied because the review file didn\u2019t include the pathology report and the treating provider office note. The appeal deadline has passed, so options after a passed appeal deadline are reviewed by a human representative, and I can connect you if you\u2019d like\u2014would you like me to do that?"
         },
         {
           "role": "user",
-          "content": "How much will I get paid for this claim?"
+          "content": "What about my auto claim?"
         },
         {
           "role": "assistant",
-          "content": "For claim CL-2048, the expected reimbursement amount is 0.00, and the net pay is 0.00 since it\u2019s currently denied. If you\u2019d like, I can connect you with a human representative to review options after the passed appeal deadline."
+          "content": "Okay, I switched to your auto claim CL-2102. It\u2019s currently open and in progress, with an expected reimbursement amount of $3,200.00 and an allowed max amount of $3,500.00. Do you want me to connect you to a human representative, or is there a specific question you have about this auto claim?"
+        },
+        {
+          "role": "user",
+          "content": "OK, back to the denied one. What documents do I need?"
+        },
+        {
+          "role": "assistant",
+          "content": "For your denied healthcare claim CL-2048, you\u2019ll need the pathology report and the treating provider\u2019s office note, because the review file didn\u2019t include those documents. The appeal deadline has passed, and options after a passed appeal deadline are reviewed by a human representative if you want a transfer\u2014would you like me to connect you?"
         }
       ]
     }

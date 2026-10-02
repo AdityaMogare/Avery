@@ -72,6 +72,12 @@ def default_model(provider: str) -> str:
     return LLM_MODEL or PROVIDERS[provider]["model"]
 
 
+# USD per 1M tokens, used for the per-turn cost estimate. Defaults match the gpt-5.4-nano list
+# price; set PRICE_* for the model actually in use.
+PRICE_INPUT_PER_M = float(os.getenv("PRICE_INPUT_PER_M", "0.20"))
+PRICE_CACHED_INPUT_PER_M = float(os.getenv("PRICE_CACHED_INPUT_PER_M", "0.02"))
+PRICE_OUTPUT_PER_M = float(os.getenv("PRICE_OUTPUT_PER_M", "1.25"))
+
 # Run the LLM groundedness judge on every live reply (adds a call per turn).
 LIVE_JUDGE = os.getenv("LIVE_JUDGE", "false").lower() == "true"
 
