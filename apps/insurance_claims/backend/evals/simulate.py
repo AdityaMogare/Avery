@@ -6,7 +6,7 @@ party or not at all, the right claim, the email choice) and on every trace prope
 specs never used still has to satisfy the SOP.
 
 Usage (from apps/insurance_claims/backend):
-    OPENAI_API_KEY=... python -m evals.simulate [--runs 3] [--workers 8] [--personas calm angry] [--goals ...]
+    LLM_API_KEY=... python -m evals.simulate [--runs 3] [--workers 8] [--personas calm angry] [--goals ...]
 Writes evals/simulation_report.md and .json.
 """
 
@@ -171,11 +171,11 @@ def main() -> int:
     ap.add_argument("--personas", nargs="*", default=list(PERSONAS))
     ap.add_argument("--goals", nargs="*", default=list(GOALS))
     args = ap.parse_args()
-    key = os.getenv("OPENAI_API_KEY")
+    key = config.env_api_key()
     if not key:
-        print("OPENAI_API_KEY is required", file=sys.stderr)
+        print("An LLM API key is required (LLM_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...)", file=sys.stderr)
         return 2
-    agent, sim = Agent(api_key=key), LLMClient(key, config.OPENAI_MODEL)
+    agent, sim = Agent(api_key=key), LLMClient(key)
     jobs = [(p, g) for p in args.personas for g in args.goals for _ in range(args.runs)]
     started = time.time()
 
@@ -201,7 +201,7 @@ def summarize(results: list[dict], runs: int, seconds: float) -> dict[str, Any]:
         c["passed"] += r["passed"]
         c["n"] += 1
     return {
-        "model": config.OPENAI_MODEL, "runs_per_cell": runs, "conversations": len(results),
+        "model": agent.mode, "runs_per_cell": runs, "conversations": len(results),
         "passed": sum(r["passed"] for r in results),
         "cells_pass_all": sum(c["passed"] == c["n"] for c in cells.values()), "cells": list(cells.values()),
         "mean_turns": round(sum(r["turns"] for r in results) / len(results), 1),

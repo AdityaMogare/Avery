@@ -61,7 +61,7 @@ OPENAI_API_KEY=sk-... ../../../.venv/bin/uvicorn app.api:app --reload --port 800
 
 ```bash
 cd apps/insurance_claims/backend
-../../../.venv/bin/pytest                                   # 183 offline tests, live tests skipped
+../../../.venv/bin/pytest                                   # 197 offline tests, live tests skipped
 OPENAI_API_KEY=sk-... ../../../.venv/bin/pytest -m llm      # same scenario specs against the live model + judge
 ../../../.venv/bin/python -m evals.run_evals --offline      # scorecard -> evals/report.md
 # Live (OPENAI_API_KEY set, or in .env):
@@ -72,7 +72,7 @@ OPENAI_API_KEY=sk-... ../../../.venv/bin/pytest -m llm      # same scenario spec
 ```
 
 Parallel live runs share one tokens-per-minute limit; `evals.simulate` defaults to 3 workers, and the client
-retries 429s with backoff (`OPENAI_MAX_RETRIES`, default 6).
+retries 429s with backoff (`LLM_MAX_RETRIES`, default 6; `OPENAI_MAX_RETRIES` still works).
 
 ### Submission zip
 
@@ -234,7 +234,7 @@ template.
    offline extractor missed "I'm the policyholder, Jonathan Reyes").
 7. **Judge calibration** (`evals/calibrate_judge.py`, `evals/judge_labels.jsonl`): the judge against 42
    labelled replies, 12 of them deliberately borderline. See `evals/judge_calibration.md`.
-8. **Simulated users** (`evals/simulate.py`): a second nano instance plays the caller (calm, angry, confused,
+8. **Simulated users** (`evals/simulate.py`): a second model instance plays the caller (calm, angry, confused,
    adversarial, noisy speech-to-text) for five goals, including an impostor who only knows the name and
    policy number. Scored on the outcome state and every trace property. See `evals/simulation_report.md`.
 9. **Trajectory export** (`run_evals --export`): one JSONL episode per conversation, with per-turn

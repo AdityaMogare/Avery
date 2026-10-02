@@ -196,7 +196,7 @@ def render_md(summary: dict, rows: list[dict]) -> str:
         ]
         if u.get("judge"):
             lines.append(f"| Judge (eval only): calls / cost | {u['judge']['llm_calls']} / ${u['judge']['cost_usd']:.4f} |")
-        lines.append(f"\nPrices: gpt-5.4-nano list price, USD per 1M tokens: input {config.PRICE_INPUT_PER_M}, "
+        lines.append(f"\nPrices: configured USD per 1M tokens: input {config.PRICE_INPUT_PER_M}, "
                      f"cached input {config.PRICE_CACHED_INPUT_PER_M}, output {config.PRICE_OUTPUT_PER_M} "
                      "(override with PRICE_*_PER_M).")
     lines += ["", "| Scenario | pass^k | Notes |", "|---|---|---|"]

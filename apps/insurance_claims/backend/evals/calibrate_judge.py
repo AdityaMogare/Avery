@@ -6,7 +6,7 @@ contradicted claim). The judge sees the same FactSheet the agent would (claim re
 facts); its reply-level verdict is `ungrounded` if any atomic claim is unsupported or contradicted.
 
 Usage (from apps/insurance_claims/backend):
-    OPENAI_API_KEY=... python -m evals.calibrate_judge [--runs 3]
+    LLM_API_KEY=... python -m evals.calibrate_judge [--runs 3]
 Writes evals/judge_calibration.md and .json.
 """
 
@@ -60,11 +60,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=1, help="judge each row this many times (majority vote kept)")
     args = ap.parse_args()
-    key = os.getenv("OPENAI_API_KEY")
+    key = config.env_api_key()
     if not key:
-        print("OPENAI_API_KEY is required", file=sys.stderr)
+        print("An LLM API key is required (LLM_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...)", file=sys.stderr)
         return 2
-    judge = LLMClient(key, config.OPENAI_JUDGE_MODEL)
+    judge = LLMClient(key, config.LLM_JUDGE_MODEL)
     rows = [json.loads(line) for line in (OUT / "judge_labels.jsonl").read_text().splitlines() if line.strip()]
     cache = {c: facts_for(c) for c in {r["case"] for r in rows}}
     calls: list[dict] = []
