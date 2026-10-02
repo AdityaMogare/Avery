@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -10,10 +11,11 @@ from .fixtures import Repository, get_repo
 from .grounding.extraction_guard import ground_understanding
 from .grounding.judge import judge_reply
 from .grounding.verifier import verify_reply
-from .llm import LLMClient, LLMError
+from .llm import USAGE_SINK, LLMClient, LLMError, summarize_usage
 from .responder import LLMResponder, ResponseDraft, TemplateResponder
 from .sop.controller import SOPController
 from .state import Message, SessionState
+from .text_normalize import normalize_spoken
 from .understanding import HeuristicUnderstander, LLMUnderstander, high_precision_flags
 
 GREETING = ("Hi, thanks for calling claims support. I'm Avery. Before I can look into any claim, I need to "
@@ -32,6 +34,7 @@ class TurnResult:
     mode: str
     judge: dict[str, Any] | None = None
     errors: list[str] = field(default_factory=list)
+    usage: dict[str, Any] = field(default_factory=dict)  # LLM calls, tokens, model ms, wall ms, est. cost
 
 
 class Agent:
@@ -53,10 +56,28 @@ class Agent:
         return GREETING
 
     def handle(self, state: SessionState, message: str) -> TurnResult:
+        calls: list[dict[str, Any]] = []
+        token = USAGE_SINK.set(calls)
+        started = time.perf_counter()
+        try:
+            result = self._handle(state, message)
+        finally:
+            USAGE_SINK.reset(token)
+        result.usage = {**summarize_usage(calls), "wall_ms": round((time.perf_counter() - started) * 1000)}
+        state.log("turn_usage", **{k: v for k, v in result.usage.items() if k != "by_stage"}, stages=result.usage["by_stage"])
+        result.events.append(state.trace[-1].model_dump())
+        return result
+
+    def _handle(self, state: SessionState, message: str) -> TurnResult:
         state.turn += 1
         first_event = len(state.trace)
         errors: list[str] = []
         state.transcript.append(Message(role="user", content=message, turn=state.turn))
+        # Spoken values ("four four seven two") in written form, for the regex extractor and the input
+        # guard. The model and the transcript keep the caller's raw words.
+        written = normalize_spoken(message)
+        if written != message:
+            state.log("spoken_normalized")
 
         # 1. Understand (LLM extraction; heuristic offline / on error)
         understanding, source = None, "heuristic"
@@ -66,7 +87,7 @@ class Agent:
             except LLMError as exc:
                 errors.append(f"understanding: {exc}")
         if understanding is None:
-            understanding = self.heuristic.understand(state, message)
+            understanding = self.heuristic.understand(state, written)
         state.log("understanding", source=source,
                   signals=understanding.model_dump(exclude_none=True, exclude_defaults=True,
                                                    exclude={"full_name", "dob", "phone", "email", "id_last4"}),
@@ -76,7 +97,7 @@ class Agent:
         #     digits that were in the message). Regex extraction reads the raw text, so it is grounded by
         #     construction; it only fills fields the model left empty.
         if source == "llm":
-            regex = self.heuristic.understand(state, message)
+            regex = self.heuristic.understand(state, written)
             filled = {}
             for attr in ("dob", "phone", "email", "id_last4", "policy_number", "case_id", "full_name",
                          "case_type", "case_status", "case_month"):
@@ -87,7 +108,7 @@ class Agent:
                 state.log("extraction_backfill", fields=filled)
             # Safety flags are OR-ed with high-precision deterministic detectors (defense in depth: a model
             # miss must not reopen a gate). Only keyword-level detectors are used, not the broad heuristics.
-            injection, off_topic = high_precision_flags(message)
+            injection, off_topic = high_precision_flags(written)
             if (injection and not understanding.is_injection_attempt) or (off_topic and not understanding.is_off_topic):
                 state.log("guardrail_backstop", injection=injection, off_topic=off_topic)
             understanding.is_injection_attempt |= injection
@@ -100,7 +121,7 @@ class Agent:
             understanding.cannot_obtain_alternatives |= regex.cannot_obtain_alternatives
 
         # 1b. Input grounding: drop extracted values the caller never actually said.
-        guard = ground_understanding(understanding, message)
+        guard = ground_understanding(understanding, written)
         if guard.rejected or guard.corrected:
             state.log("extraction_guard", rejected=sorted(guard.rejected), corrected=sorted(guard.corrected))
         understanding = guard.understanding

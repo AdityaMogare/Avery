@@ -16,3 +16,4 @@ apps/insurance_claims/backend/outbox/
 *.zip
 # local agent tooling
 .claude/
+*.tsbuildinfo

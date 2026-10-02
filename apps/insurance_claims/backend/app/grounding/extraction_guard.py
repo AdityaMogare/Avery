@@ -89,7 +89,10 @@ def ground_understanding(und: TurnUnderstanding, message: str) -> GuardResult:
                 res.rejected["name"] = "not found in the message"
                 u.full_name = None
     if u.dob and not _dob_grounded(u.dob, message):
-        res.rejected["dob"] = _raw_date_like(message) or "unclear"
+        # Live (nano): "Why didn't that work?" came back with the DOB from an earlier turn. With no date-like
+        # text in the message the value was invented, not misheard, so it is dropped without a clarify.
+        said_a_date = bool(re.search(r"\d", message)) or any(m.casefold()[:3] in low for m in MONTHS)
+        res.rejected["dob"] = _raw_date_like(message) or ("unclear" if said_a_date else "not found in the message")
         u.dob = None
     if u.id_last4 and u.id_last4 not in msg_digits:
         res.rejected["id_last4"] = "not found in the message"
@@ -128,9 +131,11 @@ def ground_understanding(und: TurnUnderstanding, message: str) -> GuardResult:
 
 
 def describe_rejections(rejected: dict[str, str]) -> list[str]:
+    """Fields to ask the caller to restate. A value the model invented ("not found in the message") is
+    dropped silently: asking the caller to "restate" something they never said is itself ungrounded."""
     out = []
     for f, raw in rejected.items():
-        if f in FIELD_LABELS:
+        if f in FIELD_LABELS and raw != "not found in the message":
             label = FIELD_LABELS[f]
             out.append(f"{label} (you wrote '{raw}')" if raw not in ("unclear", "not found in the message") else label)
     return out

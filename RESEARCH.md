@@ -275,9 +275,14 @@ every outgoing statement.
 
 ## Known limits (honest)
 
-- **Semantic misuse of a real number** (e.g. calling the allowed maximum "what you'll be paid") passes the
-  regex verifier because the number exists in the facts. The LLM judge layer covers this
-  (`tests/test_llm_path_fake.py` documents the gap).
+- **Semantic misuse of a real number** (e.g. calling the allowed maximum "what you'll be paid") used to pass
+  the regex verifier because the number exists in the facts. Gate G9 now maps each amount back to its
+  `claim_schema.json` field and checks the words around it (payout words only next to net pay or expected
+  reimbursement, "maximum/allowed" only next to the cap). It is keyword-based, so a paraphrase with no cue
+  word next to the amount is still left to the judge.
+- **The judge misses subtle inferences.** Calibrated against 42 labelled replies (`evals/judge_calibration.md`),
+  it agreed on 93% (kappa 0.86) and never flagged a grounded reply, but accepted "denied in January" (only a
+  creation date is on record), blame on the provider, and a per-claim cap restated as an annual limit.
 - The offline heuristic understander is intentionally simple. It exists so the SOP harness can be tested
   deterministically, not as a production NLU.
 - Sessions are in-memory, and email is a mock outbox (`backend/outbox/*.json`).

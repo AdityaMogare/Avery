@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from . import config
@@ -15,8 +16,9 @@ from .pipeline import Agent, TurnResult
 from .state import SessionState
 
 
-def load_scenarios() -> list[dict[str, Any]]:
-    return json.loads((config.FIXTURES_DIR / "specs" / "scenarios.json").read_text())["scenarios"]
+def load_scenarios(fixtures_dir: Path | None = None) -> list[dict[str, Any]]:
+    path = (fixtures_dir or config.FIXTURES_DIR) / "specs" / "scenarios.json"
+    return json.loads(path.read_text())["scenarios"]
 
 
 @dataclass
@@ -87,7 +89,7 @@ def evaluate(run: ScenarioRun, agent: Agent) -> None:
         facts = FactSheet()
         for f_ in res.facts:
             facts.add(f_["id"], f_["value"], f_["source"])
-        hits = [v for v in check_gates(res.reply, facts, state, res.actions) if v.split()[0] in prefixes]
+        hits = [v for v in check_gates(res.reply, facts, state, res.actions, agent.repo) if v.split()[0] in prefixes]
         if hits:
             f.append(f"turn {turn} gate violations: {hits}")
     if "failed_attempts" in exp and state.verification.failed_attempts != exp["failed_attempts"]:

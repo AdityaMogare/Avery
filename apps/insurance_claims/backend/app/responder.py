@@ -85,16 +85,21 @@ class TemplateResponder:
                 "Could you share that again in full (for a date of birth, please include the 4-digit year)?",
                 "verification.unclear_fields")
         if "VERIFICATION_FAILED" in a:
-            say(f"I wasn't able to verify your identity with those details. Please double-check and share at least 3 of: "
-                f"{v('verification.options_remaining')}. You have {v('verification.attempts_remaining')} attempt(s) remaining.",
-                "verification.options_remaining", "verification.attempts_remaining")
+            say(f"I wasn't able to verify your identity with those details. If one of them was off, you can just correct "
+                f"it, or share at least 3 of: {v('verification.options_remaining')}. You have "
+                f"{v('verification.attempts_remaining')} attempt(s) remaining.",
+                "verification.correction", "verification.options_remaining", "verification.attempts_remaining")
         if "ASK_VERIFICATION" in a:
             if "caller.case_hint" in f:
                 say(f"I've noted that you're calling about your {v('caller.case_hint')}, and I'll look at it as soon as you're verified.",
                     "caller.case_hint", "sop.after_verification")
             need, have = v("verification.fields_still_needed"), v("verification.fields_received")
             opts = v("verification.options_remaining")
-            if have in ("", "0") and "EXPLAIN_VERIFICATION" in a:
+            if "verification.last_attempt" in f and have in ("", "0"):
+                say("The details you gave didn't match our records, and for your security I can't say which one. "
+                    f"If one was off, you can just correct it, or share any 3 of: {opts}.",
+                    "verification.last_attempt", "verification.correction", "verification.options_remaining")
+            elif have in ("", "0") and "EXPLAIN_VERIFICATION" in a:
                 say(f"You can verify with any 3 of: {opts}.", "verification.options_remaining")
             elif have in ("", "0"):
                 say(f"To protect your information, I first need to verify your identity. Please share any 3 of: {opts}.",
@@ -149,18 +154,25 @@ class TemplateResponder:
         if "ANSWER_CASE" in a:
             self._answer_case(state, decision, say, v, p)
 
-        if "OFFER_EMAIL" in a:
+        if "OFFER_EMAIL" in a and "TRANSFER_HUMAN" not in a:
             say(f"Before you go, would you like me to email a summary of our conversation, including what we discussed, "
                 f"the claim status and next steps, to {v('email.to_masked')}? Just say send or skip.",
                 "email.to_masked", "email.summary_contents")
+        transferring = "ALREADY_TRANSFERRED" in a
         if "EMAIL_SENT" in a:
-            say(f"Done. I've sent the summary to {v('email.sent_to_masked')}. Thank you for calling!", "email.sent_to_masked")
+            say(f"Done. I've sent the summary to {v('email.sent_to_masked')}." + ("" if transferring else " Thank you for calling!"),
+                "email.sent_to_masked")
         if "EMAIL_SKIPPED" in a:
-            say("No problem, I won't send an email. Thank you for calling, and take care!", "email.status")
+            say("No problem, I won't send an email." + ("" if transferring else " Thank you for calling, and take care!"),
+                "email.status")
         if "OFFER_HUMAN" in a:
             say("Would you like me to connect you with a human representative?", "offer.human_transfer_reason", "sop.human_transfer")
         if "TRANSFER_HUMAN" in a:
             say("I'm connecting you with a human representative now.", "transfer.reason", "transfer.next")
+            if "OFFER_EMAIL" in a:
+                say(f"Before they join, would you like me to email a summary of our conversation, including what we "
+                    f"discussed, the claim status and next steps, to {v('email.to_masked')}? Just say send or skip.",
+                    "email.to_masked", "email.summary_contents")
         if "ALREADY_TRANSFERRED" in a:
             say("A human representative will be with you shortly; thank you for your patience.", "transfer.reason")
         if "GOODBYE" in a:
@@ -179,7 +191,8 @@ class TemplateResponder:
         specific = bool(topics or alternatives)
         overview = "CASE_SELECTED" in decision.actions or not specific
         if overview:
-            say(f"Claim {cid} is a {v(p + '.case_type')} claim created on {v(p + '.created_at')}, and its status is "
+            ctype = v(p + '.case_type')
+            say(f"Claim {cid} is {'an' if ctype[:1].lower() in 'aeiou' else 'a'} {ctype} claim created on {v(p + '.created_at')}, and its status is "
                 f"{v(p + '.status')}: {v(p + '.summary')}.", f"{p}.case_id", f"{p}.case_type", f"{p}.created_at", f"{p}.status", f"{p}.summary")
             if f"{p}.denial_reason" in f:
                 say(f"It was denied because {v(p + '.denial_reason')}.", f"{p}.denial_reason")
@@ -193,7 +206,13 @@ class TemplateResponder:
                         "connect you if you'd like.", "sop.passed_deadline_review", "sop.human_transfer")
                 else:
                     say(f"The appeal deadline on record is {v(p + '.appeal_deadline')}.", f"{p}.appeal_deadline")
-            if v(p + ".status") in ("closed", "open") and f"{p}.net_pay" in f:
+            if "ANSWER_AMOUNTS" in decision.actions and f"{p}.allowed_max_amount" in f:
+                say(f"On record for claim {cid}: the amount paid so far (net pay) is ${v(p + '.net_pay')}, the expected "
+                    f"reimbursement is ${v(p + '.expected_reimbursement_amount')}, and the maximum allowed amount, "
+                    f"which is the most the insurer pays for a covered service rather than a payment, is "
+                    f"${v(p + '.allowed_max_amount')}.", f"{p}.net_pay", f"{p}.expected_reimbursement_amount",
+                    f"{p}.allowed_max_amount", "schema.allowed_max_amount")
+            elif v(p + ".status") in ("closed", "open") and f"{p}.net_pay" in f:
                 say(f"The expected reimbursement is ${v(p + '.expected_reimbursement_amount')} and the amount paid so far is "
                     f"${v(p + '.net_pay')}.", f"{p}.expected_reimbursement_amount", f"{p}.net_pay")
         for fid in alternatives:

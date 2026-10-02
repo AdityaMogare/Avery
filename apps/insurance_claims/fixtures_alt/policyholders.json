@@ -1,0 +1,35 @@
+[
+  {
+    "party_id": "P21",
+    "name": "Jonathan Reyes",
+    "name_aliases": [
+      "Jon Reyes"
+    ],
+    "policy_number": "POL-5530",
+    "dob": "1978-11-02",
+    "id_type": "ssn_last4",
+    "id_last4": "3391",
+    "phone": "+14155550192",
+    "email": "jreyes@email.com"
+  },
+  {
+    "party_id": "P22",
+    "name": "Priya Natarajan",
+    "policy_number": "POL-6120",
+    "dob": "1992-06-30",
+    "id_type": "national_id_last4",
+    "id_last4": "8810",
+    "phone": "+12065550147",
+    "email": "priya.n@email.com"
+  },
+  {
+    "party_id": "P23",
+    "name": "Samuel Okafor",
+    "policy_number": "POL-7004",
+    "dob": "1969-02-14",
+    "id_type": "ssn_last4",
+    "id_last4": "5021",
+    "phone": "+13125550111",
+    "email": "sam.okafor@email.com"
+  }
+]

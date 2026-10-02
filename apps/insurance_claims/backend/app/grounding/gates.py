@@ -18,6 +18,9 @@ statement types the live evals showed slipping through, each derived from Contex
                        back must appear in the caller's own messages, and a caller.*/memory fact must exist.
   G8 decision fidelity - the reply must state the outcome the controller decided (e.g. verification failed)
                        and must not describe work the system is not doing ("I'll check them now").
+  G9 amount meaning  - a real amount used with the wrong meaning: the allowed maximum (or fee schedule) said
+                       as a payment, or a paid/expected amount called the maximum. The verifier only proves the
+                       number exists; claim_schema.json says what each field means.
 """
 
 from __future__ import annotations
@@ -101,7 +104,57 @@ PENDING_WORK = re.compile(
     r"\bone moment\b|\b(checking|verifying) (them|that|those|your details) now\b", re.I)
 
 
-def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list[str] | None = None) -> list[str]:
+# G9: what each money field means (fixtures/claim_schema.json).
+PAYMENT_FIELDS = {"net_pay", "expected_reimbursement_amount"}
+CAP_FIELDS = {"allowed_max_amount", "net_fee"}
+G9_MONEY = re.compile(r"\$\s?\d[\d,]*(?:\.\d{2})?|\b\d[\d,]*\.\d{2}\b")
+PAYOUT_WORDS = re.compile(r"\b(paid|pays?|paying|payment|payout|receive[sd]?|get|getting|reimburse\w*|check for|refund)\b")
+CAP_WORDS = re.compile(r"\b(max(imum)?|allowed|allowable|up to|cap|limit|fee schedule|net fee|at most|the most)\b")
+CLAUSE_BREAK = re.compile(r"[.;:!?()]|,|\band\b|\bwhile\b|\bbut\b|\bwith\b")
+
+
+def _amount_fields(facts: FactSheet) -> dict[float, set[str]]:
+    """Map each money value on the selected claim(s) to the field names that hold it."""
+    out: dict[float, set[str]] = {}
+    for fid, fact in facts.facts.items():
+        m = re.fullmatch(r"claim\.[^.]+\.(expected_reimbursement_amount|allowed_max_amount|net_pay|net_fee)", fid)
+        if m and fact.value not in (None, ""):
+            out.setdefault(float(str(fact.value).replace(",", "")), set()).add(m.group(1))
+    return out
+
+
+def _clause_before(text: str, start: int) -> str:
+    """The words leading up to an amount, back to the previous clause break ("…and the maximum is $X")."""
+    head = text[:start]
+    breaks = [m.end() for m in CLAUSE_BREAK.finditer(head)]
+    return head[breaks[-1] if breaks else 0:]
+
+
+def check_amount_meaning(reply: str, facts: FactSheet) -> list[str]:
+    fields_for = _amount_fields(facts)
+    if not fields_for:
+        return []
+    text = normalize_quotes(reply).casefold()
+    out = []
+    for m in G9_MONEY.finditer(text):
+        value = float(re.sub(r"[^\d.]", "", m.group(0)) or 0)
+        fields = fields_for.get(value)
+        if not fields:
+            continue  # unknown amounts are the verifier's job
+        after = text[m.end():m.end() + 30]
+        cut = CLAUSE_BREAK.search(after)
+        clause = _clause_before(text, m.start()) + (after[:cut.start()] if cut else after)
+        says_cap = bool(CAP_WORDS.search(clause))
+        says_payout = bool(PAYOUT_WORDS.search(clause))
+        if says_payout and not says_cap and not fields & PAYMENT_FIELDS:
+            out.append(f"G9 presents {m.group(0).strip()} ({'/'.join(sorted(fields))}) as a payment")
+        elif says_cap and not fields & CAP_FIELDS:
+            out.append(f"G9 calls {m.group(0).strip()} ({'/'.join(sorted(fields))}) a maximum/allowed amount")
+    return out
+
+
+def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list[str] | None = None,
+                repo=None) -> list[str]:
     actions = actions or []
     reply = normalize_quotes(reply)  # live: nano wrote "won’t" (U+2019) and slipped past every ASCII pattern
     text = reply.casefold()
@@ -134,8 +187,10 @@ def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list
 
     role = state.memory.caller_role.value if state.memory.caller_role else None
     if role == "representative" and state.verification.party_id:
-        from ..fixtures import get_repo  # local import keeps gates free of repo state otherwise
-        holder = get_repo().policyholder(state.verification.party_id)
+        if repo is None:  # unit tests; the pipeline always passes the agent's own repository
+            from ..fixtures import get_repo
+            repo = get_repo()
+        holder = repo.policyholder(state.verification.party_id)
         first = holder["name"].split()[0].casefold() if holder else None
         rep = (state.memory.representative_name.value if state.memory.representative_name else "") or ""
         if first and first not in rep.casefold() and re.search(
@@ -151,7 +206,7 @@ def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list
     # G7: references to the conversation must be backed by the conversation.
     caller_text = " ".join(m.content.casefold() for m in state.transcript if m.role == "user")
     has_context_fact = any(f.source == "caller" for f in facts.facts.values()) or bool(
-        state.memory.case_hints or state.memory.intent or state.memory.pii)
+        state.memory.case_hints or state.memory.intent or state.memory.pii or state.verification.retained_pii)
     for sentence in re.split(r"(?<=[.!?])\s+", reply):
         if not CONTEXT_REFERENCE.search(sentence):
             continue
@@ -160,6 +215,8 @@ def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list
         for token in VALUE_TOKEN.findall(sentence):
             if token.casefold() not in caller_text and not _in_facts(token, facts):
                 out.append(f"G7 quotes '{token}' as the caller's words, but the caller never said it")
+
+    out.extend(check_amount_meaning(reply, facts))
 
     # G8: say what was decided; don't narrate work that isn't happening.
     for action, pattern in REQUIRED_OUTCOME.items():

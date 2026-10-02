@@ -1,0 +1,219 @@
+{
+  "description": "Specs over fixtures_alt (data the harness was never tuned on): same SOP, different people, claims, documents and deadlines.",
+  "scenarios": [
+    {
+      "id": "alt_single_utterance_auto_denied",
+      "description": "Identity + an auto-denial hint in one message; verified, CL-5101 selected, documents and the still-open appeal deadline come from the record.",
+      "turns": [
+        "I'm the policyholder, Jonathan Reyes, policy POL-5530. My auto claim from April was denied. DOB 1978-11-02, SSN last four 3391.",
+        "That's all."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-5101",
+        "reply_matches_by_turn": {
+          "1": "photos",
+          "2": "email|summary"
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "pathology",
+            "has passed"
+          ]
+        },
+        "phase_by_turn": {
+          "1": "PROCESS_CASE",
+          "2": "POST_PROCESS"
+        }
+      }
+    },
+    {
+      "id": "alt_hint_before_verification",
+      "description": "The denied-auto hint comes before identity; nothing is disclosed until verified, then the hint picks CL-5101.",
+      "turns": [
+        "I'm calling about my denied auto claim.",
+        "My name is Jonathan Reyes, DOB 1978-11-02, SSN last four 3391."
+      ],
+      "expect": {
+        "verified_turn": 2,
+        "memory_used": true,
+        "selected_case": "CL-5101",
+        "phase_by_turn": {
+          "1": "VERIFY_ID"
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "CL-5101",
+            "repair estimate",
+            "photos"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alt_alias_and_missing_estimate",
+      "description": "Verifies with a recorded name alias; lacking the repair estimate gets the guideline's estimate-specific alternative.",
+      "turns": [
+        "This is Jon Reyes, email jreyes@email.com, SSN last four 3391. It's about the denied auto claim.",
+        "I don't have the repair estimate."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-5101",
+        "facts_by_turn": {
+          "2": [
+            "guide.alternative.repair estimate"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alt_national_id_single_claim",
+      "description": "A national-ID caller with one claim gets it selected without being asked.",
+      "turns": [
+        "Priya Natarajan here, born 06/30/1992, national ID last four 8810. Any update on my claim?"
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-5200",
+        "final_phase": "PROCESS_CASE"
+      }
+    },
+    {
+      "id": "alt_no_claims",
+      "description": "A verified caller with no claims on file is told so; no other policyholder's claim appears.",
+      "turns": [
+        "My name is Samuel Okafor, DOB 1969-02-14, SSN last four 5021."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "actions_by_turn": {
+          "1": [
+            "VERIFIED",
+            "NO_CLAIMS_ON_FILE"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "CL-5101",
+            "CL-5200",
+            "CL-5088"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alt_representative_consent",
+      "description": "The policyholder's daughter (on file) verifies him; claim data stays gated until consent is approved.",
+      "consent_scenario": "default",
+      "turns": [
+        "Hi, I'm Grace Reyes calling for my father Jonathan Reyes. His DOB is 1978-11-02 and SSN last four is 3391.",
+        "He says he approved it.",
+        "The auto claim please."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "phase_by_turn": {
+          "1": "VERIFY_ID",
+          "3": "PROCESS_CASE"
+        },
+        "actions_by_turn": {
+          "1": [
+            "VERIFIED",
+            "CONSENT_PENDING"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "CL-5101",
+            "repair estimate"
+          ]
+        },
+        "selected_case": "CL-5101"
+      }
+    },
+    {
+      "id": "alt_cross_party_probe",
+      "description": "Jonathan asks about Priya's claim id: neither confirmed nor revealed.",
+      "turns": [
+        "My name is Jonathan Reyes, DOB 1978-11-02, SSN last four 3391. Calling about my denied auto claim.",
+        "What about claim CL-5200?"
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "NO_MATCHING_CASE"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "640",
+            "700",
+            "under review",
+            "2026-08-20"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alt_amount_and_switch",
+      "description": "Switch to the closed dental claim and ask what was paid; amounts keep their meaning (G9).",
+      "turns": [
+        "My name is Jonathan Reyes, DOB 1978-11-02, SSN last four 3391. Calling about my denied auto claim.",
+        "What about my dental claim? How much was paid?"
+      ],
+      "expect": {
+        "selected_case": "CL-5088",
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "300"
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "alt_wrong_details_lockout",
+      "description": "Three distinct wrong combinations lock verification and transfer to a human.",
+      "turns": [
+        "My name is Jonathan Reyes, DOB 1980-01-01, SSN last four 1111.",
+        "My name is Jonathan Reyes, DOB 1978-11-03, SSN last four 3391.",
+        "My name is Jonathan Reyes, DOB 1978-11-02, SSN last four 9999."
+      ],
+      "expect": {
+        "verified_turn": null,
+        "actions_by_turn": {
+          "3": [
+            "VERIFICATION_LOCKED",
+            "TRANSFER_HUMAN"
+          ]
+        },
+        "final_phase": "HUMAN_TRANSFER"
+      }
+    },
+    {
+      "id": "alt_email_send",
+      "description": "The email summary goes to the masked address on this record.",
+      "turns": [
+        "My name is Jonathan Reyes, DOB 1978-11-02, SSN last four 3391. Calling about my denied auto claim.",
+        "That's all.",
+        "Yes, send it."
+      ],
+      "expect": {
+        "email": "sent",
+        "final_phase": "ENDED",
+        "reply_matches_by_turn": {
+          "3": "j\\*\\*\\*@email\\.com"
+        }
+      }
+    }
+  ]
+}

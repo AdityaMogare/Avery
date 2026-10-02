@@ -8,6 +8,7 @@ must phrase. The responder can never change the phase or reach data the controll
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -53,6 +54,13 @@ class Decision:
             self.actions.append(action)
 
 
+# Money questions: answered with each amount under its schema meaning (ANSWER_AMOUNTS).
+AMOUNT_QUESTION = re.compile(r"\b(how much|amount|paid|pay|payout|payment|reimburs\w*|maximum|max|allowed|money|"
+                             r"cover(ed|age)?|owe|check)\b|\$", re.I)
+# "my other claim", "a different one": the caller means a claim other than the one being discussed.
+OTHER_CASE = re.compile(r"\b(other|another|different|second)\b(\s+\w+){0,2}\s+(claim|one)\b", re.I)
+
+
 class SOPController:
     def __init__(self, repo: Repository):
         self.repo = repo
@@ -76,6 +84,8 @@ class SOPController:
             d.facts.add("representative.name", state.memory.representative_name.value, "caller")
 
         if state.phase == Phase.HUMAN_TRANSFER:
+            if state.pending_offer == "email":
+                self._email_choice(state, und, d, tools, end_call=False)
             d.add("ALREADY_TRANSFERRED")
             d.facts.add("transfer.reason", state.transfer_reason, "session")
             return d
@@ -137,6 +147,9 @@ class SOPController:
         for fname, value in {"name": und.full_name, "dob": und.dob, "phone": und.phone,
                              "email": und.email, "id_last4": und.id_last4}.items():
             if value and (fname not in m.pii or m.pii[fname].value != value):
+                previous = m.pii.get(fname) or state.verification.retained_pii.get(fname)
+                if previous and previous.value != value:
+                    state.log("field_corrected", field=fname)  # field name only, never the values
                 m.pii[fname] = Slot(value=value, turn=t)
                 changed[fname] = "<redacted>"
         for key, value in {"policy_number": und.policy_number, "caller_role": und.caller_role,
@@ -165,7 +178,8 @@ class SOPController:
             state.log("memory_update", phase=state.phase.value, changed=changed)
 
     def _emotion(self, state: SessionState, und: TurnUnderstanding, d: Decision) -> None:
-        if und.emotion in NEGATIVE_EMOTIONS or und.refuses_verification:
+        closing = und.is_done or bool(und.email_choice)
+        if (und.emotion in NEGATIVE_EMOTIONS and not closing) or und.refuses_verification:
             state.counters.frustration_streak += 1
             d.add("EMPATHY")
             d.facts.add("caller.emotion", und.emotion if und.emotion != "neutral" else "frustrated", "caller")
@@ -200,6 +214,11 @@ class SOPController:
         state.set_phase(Phase.HUMAN_TRANSFER, reason)
         d.facts.merge(tools.call("transfer_to_human", reason=reason))
         d.add("TRANSFER_HUMAN")
+        # Simulated-caller finding: "yes, connect me, and can you email me a summary?" ended in a transfer with
+        # the summary lost (and nano offering an email it could no longer send). A verified caller with a claim
+        # is offered the post-case summary before the handoff (Context.md: POST_PROCESS follow-up).
+        if state.verified and state.selected_case_id and state.email.choice is None:
+            self._email_offer_facts(state, d, tools)
         return d
 
     # ------------------------------------------------------------------------------------------
@@ -223,6 +242,12 @@ class SOPController:
             d.add("CLARIFY_FIELDS")
             d.facts.add("verification.unclear_fields", unclear, "caller")
 
+        # A correction after a failed match ("sorry, my DOB is ...") re-uses the other fields from that
+        # attempt. Only new identity input re-runs the match; a bare "why?" does not.
+        fresh = [s for s in state.memory.pii.values() if s.turn == state.turn]
+        if v.retained_pii and 0 < len(fresh) < config.MIN_VERIFIED_FIELDS:
+            for f, slot in v.retained_pii.items():
+                state.memory.pii.setdefault(f, slot)
         provided = {k: s.value for k, s in state.memory.pii.items()}
         policy = state.memory.policy_number.value if state.memory.policy_number else None
         if len(provided) < config.MIN_VERIFIED_FIELDS:
@@ -234,9 +259,14 @@ class SOPController:
         result = tools._last_verification
         if result.outcome == "verified":
             v.status, v.party_id, v.matched_fields = "verified", result.party_id, result.matched_fields
+            v.retained_pii = {}
             state.log("verified", party_id=result.party_id, matched_fields=result.matched_fields)
             d.facts.merge(facts)
             d.add("VERIFIED")
+            # "Why do you need this? Fine, here: ..." verifies in the same turn: explaining why verification is
+            # required would now contradict it (G4; found by the simulated angry caller).
+            if "EXPLAIN_VERIFICATION" in d.actions:
+                d.actions.remove("EXPLAIN_VERIFICATION")
             if state.memory.caller_role and state.memory.caller_role.value == "representative":
                 rep_name = state.memory.representative_name.value if state.memory.representative_name else None
                 rel = state.memory.representative_relationship.value if state.memory.representative_relationship else None
@@ -260,6 +290,7 @@ class SOPController:
         if signature not in v.failed_signatures:
             v.failed_signatures.append(signature)
             v.failed_attempts += 1
+        v.retained_pii = dict(state.memory.pii)
         state.memory.pii.clear()
         state.log("verification_failed", attempts=v.failed_attempts)
         if v.failed_attempts >= config.MAX_FAILED_VERIFICATIONS:
@@ -268,6 +299,8 @@ class SOPController:
             d.add("VERIFICATION_LOCKED")
             return self._transfer(state, tools, d, "identity could not be verified after several attempts")
         d.add("VERIFICATION_FAILED")
+        d.facts.add("verification.correction", "the caller can correct any single detail they gave; the "
+                    "other details from this attempt are kept for the next check", "session")
         d.facts.add("verification.attempts_remaining", config.MAX_FAILED_VERIFICATIONS - v.failed_attempts, "session")
         self._ask_verification_facts(state, d, after_failure=True)
         return d
@@ -285,6 +318,11 @@ class SOPController:
                     "described", "session")
         d.facts.add("verification.why", "claim details are protected health and financial information, and "
                     "verifying identity keeps them from being shared with the wrong person", "session")
+        if state.verification.retained_pii and not after_failure:
+            d.facts.add("verification.last_attempt", "the details from the last attempt did not match our records; "
+                        "for security the agent does not say which detail", "session")
+            d.facts.add("verification.correction", "the caller can correct any single detail they gave; the "
+                        "other details from that attempt are kept for the next check", "session")
 
     def _consent_step(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox) -> Decision:
         d.facts.merge(tools.call("check_consent"))
@@ -362,8 +400,10 @@ class SOPController:
 
     def _select_case(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
                      case_id: str, message: str) -> Decision:
+        # The case hints say which claim; the intent only counts when there are none (a stale turn-1 intent
+        # made a later "what about my auto claim?" read as "based on what you mentioned earlier").
         hint_turns = sorted({s.turn for s in state.memory.case_hints.values()}
-                            | ({state.memory.intent.turn} if state.memory.intent else set()))
+                            or ({state.memory.intent.turn} if state.memory.intent else set()))
         state.selected_case_id = case_id
         state.candidate_case_ids = []
         d.used_memory_turns = [t for t in hint_turns if t < state.turn]
@@ -383,20 +423,33 @@ class SOPController:
         new_question = und.followup_topics or (und.question and "?" in message)
         if und.is_done and not new_question:
             return self._offer_email(state, d, tools)
-        # Caller switched to another claim?
-        if und.case_id or und.case_type or und.case_status or und.case_month:
+        # Caller referred to a claim this turn ("what about my auto claim?", "back to the denied one", "my
+        # other one")? Match on what was said THIS turn only: memory keeps the earlier description, and
+        # mixing them produced "your denied auto claim from January" for a caller who only said "auto".
+        said = {k: v for k, v in {"case_id": und.case_id, "case_type": und.case_type, "status": und.case_status,
+                                  "month": und.case_month, "year": und.case_year}.items() if v}
+        other = bool(OTHER_CASE.search(message))
+        if said or other:
             claims = self.repo.claims_for(state.verification.party_id)
-            turn_hints = {k: s for k, s in state.memory.case_hints.items() if s.turn == state.turn}
-            scored = [(self._score(c, turn_hints, None), c) for c in claims]
-            current = next((s for s, c in scored if c["case_id"] == state.selected_case_id), float("-inf"))
-            better = [c for s, c in scored if s > max(current, 0)]
-            if len(better) == 1 and better[0]["case_id"] != state.selected_case_id:
-                state.log("case_switched", from_case=state.selected_case_id, to_case=better[0]["case_id"])
-                return self._select_case(state, und, d, tools, better[0]["case_id"], message)
-            if current == float("-inf") and better:
-                state.set_phase(Phase.RESOLVE_INTENT, "caller referred to a different claim")
-                return self._resolve_intent(state, und, d, tools, message)
-            if current == float("-inf") and not better:
+            turn_hints = {k: Slot(value=v, turn=state.turn) for k, v in said.items()}
+            matches = [c for c in claims if self._score(c, turn_hints, None) > float("-inf")
+                       and not (other and c["case_id"] == state.selected_case_id)]
+            if matches and not any(c["case_id"] == state.selected_case_id for c in matches):
+                # The new reference replaces the old description of which claim this call is about.
+                state.memory.case_hints = turn_hints
+                state.log("case_reference_changed", hints=sorted(said), other=other,
+                          candidates=[c["case_id"] for c in matches])
+                if len(matches) == 1:
+                    state.log("case_switched", from_case=state.selected_case_id, to_case=matches[0]["case_id"])
+                    d.facts.add("session.switched_from_case_id", state.selected_case_id, "session")
+                    return self._select_case(state, und, d, tools, matches[0]["case_id"], message)
+                state.set_phase(Phase.RESOLVE_INTENT, "caller referred to a different claim that matches several")
+                d.facts.merge(tools.call("list_claims"))
+                state.candidate_case_ids = [c["case_id"] for c in matches]
+                d.facts.add("resolve.candidates", state.candidate_case_ids, "session")
+                d.add("DISAMBIGUATE")
+                return d
+            if not matches:
                 # e.g. another policyholder's claim id: do not confirm or deny it exists.
                 d.facts.merge(tools.call("list_claims"))
                 state.candidate_case_ids = [c["case_id"] for c in claims]
@@ -414,6 +467,8 @@ class SOPController:
         except ToolGateError:
             d.add("CASE_UNAVAILABLE")
             return d
+        if und.intent == "payment_question" or AMOUNT_QUESTION.search(message):
+            d.add("ANSWER_AMOUNTS")
         topics = [s.value for s in state.memory.followup_topics if s.turn == state.turn]
         lacks = bool(state.memory.lacks_document) and (
             state.memory.lacks_document.turn == state.turn or bool(und.lacks_document))
@@ -466,6 +521,9 @@ class SOPController:
 
     def _offer_email(self, state: SessionState, d: Decision, tools: ToolBox) -> Decision:
         state.set_phase(Phase.POST_PROCESS, "caller has no further questions")
+        return self._email_offer_facts(state, d, tools)
+
+    def _email_offer_facts(self, state: SessionState, d: Decision, tools: ToolBox) -> Decision:
         summary = self.build_email_summary(state)
         state.email.offered, state.email.preview = True, summary
         state.pending_offer = "email"
@@ -477,13 +535,15 @@ class SOPController:
                     "session")
         d.facts.add("email.summary_topics", summary["discussed"], "session")
         d.facts.add("email.summary_next_steps", summary["next_steps"], "session")
-        if state.selected_case_id:
+        # Claim lookups stay closed during a handoff; the summary above was already built from the record.
+        if state.selected_case_id and state.phase != Phase.HUMAN_TRANSFER:
             d.facts.merge(tools.call("get_claim", case_id=state.selected_case_id))
         d.add("OFFER_EMAIL")
         return d
 
-    def _post_process(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
-                      message: str) -> Decision:
+    def _email_choice(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
+                      end_call: bool = True) -> str | None:
+        """Apply the caller's send/skip answer to a pending email offer; returns the choice made, if any."""
         choice = und.email_choice or ({"yes": "send", "no": "skip"}.get(und.affirmation or "")
                                       if state.pending_offer == "email" else None)
         if choice == "send":
@@ -492,15 +552,21 @@ class SOPController:
             d.facts.merge(tools.call("send_email_summary", summary=state.email.preview or self.build_email_summary(state)))
             state.log("email_sent", to=state.email.sent_to)
             d.add("EMAIL_SENT")
-            state.set_phase(Phase.ENDED, "email summary sent")
-            return d
-        if choice == "skip":
+            if end_call:
+                state.set_phase(Phase.ENDED, "email summary sent")
+        elif choice == "skip":
             state.email.choice = "skip"
             state.pending_offer = None
             state.log("email_skipped")
             d.facts.add("email.status", "not sent, because the caller chose to skip it", "session")
             d.add("EMAIL_SKIPPED")
-            state.set_phase(Phase.ENDED, "caller skipped the email summary")
+            if end_call:
+                state.set_phase(Phase.ENDED, "caller skipped the email summary")
+        return choice
+
+    def _post_process(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
+                      message: str) -> Decision:
+        if self._email_choice(state, und, d, tools):
             return d
         if und.question or und.followup_topics or und.case_id or und.intent:
             state.pending_offer = None

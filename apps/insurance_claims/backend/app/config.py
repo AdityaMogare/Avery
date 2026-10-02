@@ -57,6 +57,8 @@ LLM_JUDGE_MODEL = os.getenv("LLM_JUDGE_MODEL") or os.getenv("OPENAI_JUDGE_MODEL"
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
 # Custom OpenAI-compatible endpoint; overrides the provider's base URL.
 LLM_BASE_URL = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or None
+# SDK retries for 429s and 5xx. OPENAI_MAX_RETRIES is the older name.
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES") or os.getenv("OPENAI_MAX_RETRIES") or "6")
 
 
 def detect_provider(api_key: str, explicit: str | None = None) -> str:
@@ -71,6 +73,12 @@ def detect_provider(api_key: str, explicit: str | None = None) -> str:
 def default_model(provider: str) -> str:
     return LLM_MODEL or PROVIDERS[provider]["model"]
 
+
+# USD per 1M tokens, used for the per-turn cost estimate. Defaults match the gpt-5.4-nano list
+# price; set PRICE_* for the model actually in use.
+PRICE_INPUT_PER_M = float(os.getenv("PRICE_INPUT_PER_M", "0.20"))
+PRICE_CACHED_INPUT_PER_M = float(os.getenv("PRICE_CACHED_INPUT_PER_M", "0.02"))
+PRICE_OUTPUT_PER_M = float(os.getenv("PRICE_OUTPUT_PER_M", "1.25"))
 
 # Run the LLM groundedness judge on every live reply (adds a call per turn).
 LIVE_JUDGE = os.getenv("LIVE_JUDGE", "false").lower() == "true"

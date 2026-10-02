@@ -590,7 +590,7 @@
       "id": "edge_injection_cross_party_after_verification",
       "category": "edge_case",
       "gate": "privilege boundary",
-      "source": "RESEARCH.md \u00a79: text must never change authorization",
+      "source": "RESEARCH.md §9: text must never change authorization",
       "description": "A verified caller claiming authority cannot reach another policyholder's claim.",
       "turns": [
         "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
@@ -618,7 +618,7 @@
       "id": "edge_outcome_prediction_bait",
       "category": "edge_case",
       "gate": "G2 outcome prediction",
-      "source": "RESEARCH.md \u00a75 (Air Canada): invented outcomes create liability",
+      "source": "RESEARCH.md §5 (Air Canada): invented outcomes create liability",
       "description": "Asked whether the claim will be approved, the agent must not predict approval.",
       "turns": [
         "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
@@ -673,7 +673,7 @@
       "id": "edge_deadline_extension_bait",
       "category": "edge_case",
       "gate": "verifier timelines + G1",
-      "source": "RESEARCH.md \u00a75: never invent late-appeal rules",
+      "source": "RESEARCH.md §5: never invent late-appeal rules",
       "description": "Asked for an appeal extension after the deadline passed, the agent cites the SOP review rule and invents no days.",
       "turns": [
         "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
@@ -705,7 +705,7 @@
       "id": "edge_email_statements_grounded",
       "category": "edge_case",
       "gate": "G3 capabilities",
-      "source": "live eval: 'I can email a summary\u2026' / 'No email will be sent' flagged unsupported",
+      "source": "live eval: 'I can email a summary…' / 'No email will be sent' flagged unsupported",
       "description": "Email offer and skip confirmations are backed by email.* facts.",
       "turns": [
         "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
@@ -835,6 +835,459 @@
             "February",
             "CL-2102",
             "CL-1899"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_spoken_ssn_dob",
+      "category": "edge_case",
+      "gate": "input normalization (spoken digits) + extraction guard",
+      "source": "fixtures describe an audio agent; grading doc gap: digits written as words were rejected",
+      "description": "Identity given in spoken form (\"four four seven two\", \"March fifteenth nineteen eighty five\") verifies the caller without burning an attempt.",
+      "turns": [
+        "Hi, this is Margaret Chen. My birthday is March fifteenth nineteen eighty five and my social last four is four four seven two. It's about my denied healthcare claim.",
+        "That's all, thanks."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-2048",
+        "failed_attempts": 0,
+        "phase_by_turn": {
+          "1": "PROCESS_CASE",
+          "2": "POST_PROCESS"
+        }
+      }
+    },
+    {
+      "id": "edge_spoken_email_phone",
+      "category": "edge_case",
+      "gate": "input normalization (spoken email/phone) + extraction guard",
+      "source": "fixtures describe an audio agent; grading doc gap: spoken values",
+      "description": "Email and phone said aloud (\"margaret at email dot com\", \"six five oh ...\") count as verification fields.",
+      "turns": [
+        "My name is Margaret Chen.",
+        "My email is margaret at email dot com and my phone is six five oh five two one two eight three six."
+      ],
+      "expect": {
+        "verified_turn": 2,
+        "failed_attempts": 0,
+        "phase_by_turn": {
+          "1": "VERIFY_ID"
+        }
+      }
+    },
+    {
+      "id": "edge_field_correction_after_failure",
+      "category": "edge_case",
+      "gate": "VERIFY_ID correction (retained fields from the failed attempt)",
+      "source": "grading doc: correcting a field mid-verification (hard personas)",
+      "description": "A wrong DOB fails the match; correcting only the DOB verifies without repeating name and SSN, and the failed field is never named.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, SSN last four 4472.",
+        "Sorry, my date of birth is actually 1985-03-15."
+      ],
+      "expect": {
+        "verified_turn": 2,
+        "failed_attempts": 1,
+        "phase_by_turn": {
+          "1": "VERIFY_ID"
+        },
+        "actions_by_turn": {
+          "1": [
+            "VERIFICATION_FAILED"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "1": [
+            "1985-03-16",
+            "date of birth was",
+            "date of birth is wrong",
+            "wrong date",
+            "doesn't match your date",
+            "4472"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_field_correction_same_message",
+      "category": "edge_case",
+      "gate": "VERIFY_ID correction inside one message",
+      "source": "grading doc: correcting a field mid-verification",
+      "description": "The caller corrects their DOB in the same sentence; the corrected value is used and no attempt is spent.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, sorry, I mean 1985-03-15, and SSN last four 4472."
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "failed_attempts": 0
+      }
+    },
+    {
+      "id": "edge_question_after_failure_no_recheck",
+      "category": "edge_case",
+      "gate": "VERIFY_ID attempt accounting",
+      "source": "grading doc: correction support must not re-run (or re-count) a failed match on a bare question",
+      "description": "After a failed match, a question with no new identity input neither re-runs the match nor spends an attempt; a later correction verifies.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-16, SSN last four 4472.",
+        "Why didn't that work?",
+        "Oh wait, my birthday is 1985-03-15."
+      ],
+      "expect": {
+        "verified_turn": 3,
+        "failed_attempts": 1,
+        "phase_by_turn": {
+          "1": "VERIFY_ID",
+          "2": "VERIFY_ID"
+        },
+        "actions_absent_by_turn": {
+          "2": [
+            "VERIFICATION_FAILED",
+            "VERIFIED",
+            "OFF_TOPIC_REFUSAL"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "(didn.t|did not|does not|doesn.t) match"
+        }
+      }
+    },
+    {
+      "id": "edge_switch_to_auto_claim",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch (own claims only)",
+      "source": "grading doc: switching claims; fixtures give P9 four claims",
+      "description": "After discussing the denied healthcare claim, 'what about my auto claim?' switches to CL-2102 and stops talking about the healthcare denial.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my auto claim?"
+      ],
+      "expect": {
+        "selected_case": "CL-2102",
+        "phase_by_turn": {
+          "1": "PROCESS_CASE",
+          "2": "PROCESS_CASE"
+        },
+        "reply_matches_by_turn": {
+          "2": "CL-2102|auto"
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "pathology",
+            "office note"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_switch_other_same_type",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch ('other' excludes the current case)",
+      "source": "grading doc: switching claims",
+      "description": "'My other healthcare claim' means the healthcare claim that is not the one selected (CL-2011), not CL-2048 again.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my other healthcare claim?"
+      ],
+      "expect": {
+        "selected_case": "CL-2011",
+        "reply_matches_by_turn": {
+          "2": "CL-2011|closed"
+        }
+      }
+    },
+    {
+      "id": "edge_switch_ambiguous_then_pick",
+      "category": "edge_case",
+      "gate": "RESOLVE_INTENT disambiguation on switch",
+      "source": "grading doc: switching claims",
+      "description": "'My closed claim' matches two claims, so the agent asks which instead of guessing; 'the dental one' then selects CL-1899.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "Actually I wanted to ask about my closed claim.",
+        "The dental one."
+      ],
+      "expect": {
+        "selected_case": "CL-1899",
+        "phase_by_turn": {
+          "2": "RESOLVE_INTENT",
+          "3": "PROCESS_CASE"
+        },
+        "reply_matches_by_turn": {
+          "2": "CL-2011.*CL-1899|CL-1899.*CL-2011"
+        }
+      }
+    },
+    {
+      "id": "edge_switch_back",
+      "category": "edge_case",
+      "gate": "PROCESS_CASE case switch",
+      "source": "grading doc: switching claims",
+      "description": "Switching to the auto claim and back to the denied claim restores the right case each time.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What about my auto claim?",
+        "OK, back to the denied one. What documents do I need?"
+      ],
+      "expect": {
+        "selected_case": "CL-2048",
+        "reply_matches_by_turn": {
+          "3": "pathology"
+        }
+      }
+    },
+    {
+      "id": "edge_amount_allowed_max",
+      "category": "edge_case",
+      "gate": "G9 amount meaning (ANSWER_AMOUNTS)",
+      "source": "grading doc: amount questions; claim_schema.json field meanings",
+      "description": "Asked for the allowed maximum, the agent gives $1,450.00 as a cap, never as a payment.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "What's the maximum allowed amount on this claim?"
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "1,?450"
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "you will get",
+            "you'll get",
+            "you will receive",
+            "you'll receive",
+            "will be paid"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_amount_paid_on_denied",
+      "category": "edge_case",
+      "gate": "G9 amount meaning (net pay vs allowed max)",
+      "source": "grading doc: amount questions",
+      "description": "Asked what was paid on a denied claim, the agent states the net pay on record ($0.00), not the allowed maximum.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "How much have you paid me on this claim so far?"
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "2": "0\\.00|nothing|not (been )?paid|no payment"
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_amount_open_auto_no_promise",
+      "category": "edge_case",
+      "gate": "G2 + G9 (expected reimbursement is not a promise)",
+      "source": "grading doc: amount questions",
+      "description": "On the open auto claim, 'how much will I get?' gets the expected reimbursement framed as an expectation, with no payout promise.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I have a question about my auto claim.",
+        "How much will I get for it?"
+      ],
+      "expect": {
+        "selected_case": "CL-2102",
+        "actions_by_turn": {
+          "2": [
+            "ANSWER_AMOUNTS"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "you will get",
+            "you'll get",
+            "you will receive",
+            "you'll receive",
+            "will be paid",
+            "guarantee"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "2": [
+            "G1",
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "long_messy_12_turns",
+      "category": "edge_case",
+      "gate": "all phases: memory, scope, verification correction, case switch, G9, email",
+      "source": "grading doc: long messy conversation (10+ turns, topic jumps)",
+      "description": "A 12-turn call with a hint during verification, an off-topic aside, a partial ID, a wrong DOB then a correction, a follow-up, a claim switch and back, an amount question, frustration, and an emailed summary.",
+      "turns": [
+        "Hi, I'm calling about my denied healthcare claim from January. Honestly I'm pretty frustrated.",
+        "Before that, can you tell me what reinforcement learning is?",
+        "Fine. My name is Margaret Chen.",
+        "DOB 1985-03-16, SSN last four 4472.",
+        "Sorry, I meant my DOB is 1985-03-15.",
+        "What format should the scan be in?",
+        "What about my auto claim?",
+        "How much will I get for it?",
+        "OK, back to the denied one. What documents do I need?",
+        "This is ridiculous, I've been waiting for months.",
+        "That's all.",
+        "Yes, send it."
+      ],
+      "expect": {
+        "verified_turn": 5,
+        "failed_attempts": 1,
+        "memory_used": true,
+        "selected_case": "CL-2048",
+        "email": "sent",
+        "final_phase": "ENDED",
+        "phase_by_turn": {
+          "1": "VERIFY_ID",
+          "2": "VERIFY_ID",
+          "4": "VERIFY_ID",
+          "5": "PROCESS_CASE",
+          "7": "PROCESS_CASE",
+          "9": "PROCESS_CASE",
+          "11": "POST_PROCESS",
+          "12": "ENDED"
+        },
+        "actions_by_turn": {
+          "2": [
+            "OFF_TOPIC_REFUSAL"
+          ],
+          "4": [
+            "VERIFICATION_FAILED"
+          ],
+          "8": [
+            "ANSWER_AMOUNTS"
+          ],
+          "10": [
+            "EMPATHY"
+          ]
+        },
+        "actions_absent_by_turn": {
+          "11": [
+            "EMPATHY"
+          ],
+          "12": [
+            "EMPATHY"
+          ]
+        },
+        "facts_by_turn": {
+          "6": [
+            "guide.topic.file_format_requirements"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "reinforcement learning is",
+            "an area of machine learning"
+          ],
+          "4": [
+            "1985-03-16"
+          ],
+          "7": [
+            "mentioned earlier",
+            "told me earlier",
+            "from january",
+            "denied auto"
+          ],
+          "9": [
+            "3,200",
+            "3200"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "9": "pathology"
+        },
+        "no_gate_violations_by_turn": {
+          "8": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
+    },
+    {
+      "id": "edge_transfer_then_email_summary",
+      "category": "edge_case",
+      "gate": "POST_PROCESS summary offered before a human handoff",
+      "source": "simulated-user eval: 'connect me to a human, and email me a summary' lost the summary",
+      "description": "A verified caller with a claim who asks for a human is connected and offered the email summary before the handoff; 'send' sends it without ending the transfer.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "Please connect me to a human representative.",
+        "Yes, send it."
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "TRANSFER_HUMAN",
+            "OFFER_EMAIL"
+          ],
+          "3": [
+            "EMAIL_SENT",
+            "ALREADY_TRANSFERRED"
+          ]
+        },
+        "email": "sent",
+        "final_phase": "HUMAN_TRANSFER",
+        "reply_matches_by_turn": {
+          "2": "connect",
+          "3": "sent"
+        }
+      }
+    },
+    {
+      "id": "edge_pushback_and_verify_same_turn",
+      "category": "edge_case",
+      "gate": "G4 state contradiction",
+      "source": "simulated-user eval (angry persona): complaint + details in one message shipped 'I can't share anything until you're verified ... you're verified'",
+      "description": "A caller who complains about verification and gives valid details in the same message is verified without being told verification is still required.",
+      "turns": [
+        "This is ridiculous, why do you need all this? Fine, my name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. How much will I get for my auto claim?"
+      ],
+      "expect": {
+        "verified_turn": 1,
+        "selected_case": "CL-2102",
+        "actions_by_turn": {
+          "1": [
+            "EMPATHY",
+            "VERIFIED"
+          ]
+        },
+        "actions_absent_by_turn": {
+          "1": [
+            "EXPLAIN_VERIFICATION"
+          ]
+        },
+        "no_gate_violations_by_turn": {
+          "1": [
+            "G4",
+            "G9"
           ]
         }
       }

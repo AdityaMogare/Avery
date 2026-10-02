@@ -130,3 +130,39 @@ def test_case_id_as_subject_of_cited_fact_is_supported(repo):
     assert verify_reply("Claim CL-2048 is denied.", claims, facts, s, repo).ok
     wrong = [{"text": "Claim CL-2048 is denied.", "fact_ids": ["schema.net_pay"]}]
     assert not verify_reply("Claim CL-2048 is denied.", wrong, facts, s, repo).ok
+
+
+# --- G9 amount meaning ---------------------------------------------------------------------------
+def claim_amount_facts(case="CL-2048", expected="0.00", allowed="1450.00", net_pay="0.00", net_fee="1450.00"):
+    f = sop_facts()
+    for key, value in {"expected_reimbursement_amount": expected, "allowed_max_amount": allowed,
+                       "net_pay": net_pay, "net_fee": net_fee}.items():
+        f.add(f"claim.{case}.{key}", value, "claim_record")
+    return f
+
+
+@pytest.mark.parametrize("reply", [
+    "You'll receive $1,450.00 for this claim.",
+    "The insurer paid $1450.00 on this claim.",
+    "Your payment will be 1450.00.",
+    "The maximum allowed amount is $0.00.",
+])
+def test_g9_amount_misuse_caught(reply):
+    assert any(v.startswith("G9") for v in gates(reply, facts=claim_amount_facts()))
+
+
+@pytest.mark.parametrize("reply", [
+    "The maximum allowed amount is $1,450.00, and nothing has been paid so far ($0.00).",
+    "The most the insurer pays for a covered service is $1,450.00.",
+    "The net pay on record is $0.00 and the expected reimbursement is $0.00.",
+    "On record: paid so far $0.00, expected reimbursement $0.00, and the maximum allowed amount is $1450.00.",
+])
+def test_g9_correct_amount_meaning_passes(reply):
+    assert not any(v.startswith("G9") for v in gates(reply, facts=claim_amount_facts()))
+
+
+def test_g9_open_claim_expected_vs_cap():
+    f = claim_amount_facts("CL-2102", expected="3200.00", allowed="3500.00", net_pay="0.00", net_fee="3500.00")
+    assert not any(v.startswith("G9") for v in gates(
+        "The expected reimbursement is $3,200.00 and the allowed maximum is $3,500.00.", facts=f))
+    assert any(v.startswith("G9") for v in gates("You'll get $3,500.00 once it closes.", facts=f))

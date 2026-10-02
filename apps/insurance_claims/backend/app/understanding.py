@@ -77,6 +77,8 @@ Rules:
   mother"), set caller_role=representative, representative_name/relationship to the caller, and identity
   fields to the policyholder's details.
 - Normalize dob to YYYY-MM-DD. Phone digits only. Months as numbers 1-12.
+- Spoken values count (this is a phone line): "four four seven two" -> id_last4 "4472", "March fifteenth
+  nineteen eighty five" -> dob "1985-03-15", "margaret at email dot com" -> email "margaret@email.com".
 - "denied healthcare claim from January" -> case_status=denied, case_type=healthcare, case_month=1,
   intent=denial_question.
 - "What do I need to send?" / "what documents?" -> intent=document_submission, lacks_document=false.
@@ -124,7 +126,27 @@ _LAST4 = re.compile(r"(?:ssn|social|national id|id)[^\d]{0,30}(\d{4})\b", re.I)
 _POLICY = re.compile(r"\bPOL[-\s]?(\d{3,})\b", re.I)
 _CASE = re.compile(r"\bCL[-\s]?(\d{3,})\b", re.I)
 _NAME = re.compile(r"\b(?i:my name is|this is|name's|i am|i'm)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})")
+# Other ways callers introduce themselves (found on fixtures_alt): "I'm the policyholder, Jonathan Reyes",
+# "Priya Natarajan here".
+_NAME_ALT = (
+    re.compile(r"\b(?i:policyholder|caller)[,:]?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})"),
+    re.compile(r"(?:^|[.!?]\s+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s+here\b"),
+)
 _REP = re.compile(r"\b(?:my|for my|on behalf of my)\s+(mother|mom|father|dad|son|daughter|wife|husband|spouse)\b", re.I)
+
+# "Why didn't that work?", "what do you mean?": about this call, so never off-topic.
+_META_QUESTION = re.compile(r"\b(why|how come|what do you mean|didn't|did not|doesn't|does not|that work|wrong)\b")
+_CORRECTION = re.compile(r"\b(sorry|actually|i mean|i meant|correction|scratch that|my mistake)\b")
+
+
+def _first(pattern: re.Pattern, text: str) -> re.Match | None:
+    return pattern.search(text)
+
+
+def _last(pattern: re.Pattern, text: str) -> re.Match | None:
+    matches = list(pattern.finditer(text))
+    return matches[-1] if matches else None
+
 
 DOMAIN_WORDS = (
     "claim", "policy", "insurance", "denied", "denial", "status", "document", "report", "note", "submit",
@@ -150,21 +172,23 @@ class HeuristicUnderstander:
         low = text.casefold()
         u = TurnUnderstanding()
 
-        if (m := _EMAIL.search(text)):
+        # "1985-03-16, sorry, I mean 1985-03-15": with a correction cue the caller's last value wins.
+        pick = _last if _CORRECTION.search(low) else _first
+        if (m := pick(_EMAIL, text)):
             u.email = m.group(0)
         stripped = _EMAIL.sub(" ", text)
-        if (m := _ISO_DATE.search(stripped) or _US_DATE.search(stripped) or _LONG_DATE.search(stripped)):
+        if (m := pick(_ISO_DATE, stripped) or pick(_US_DATE, stripped) or pick(_LONG_DATE, stripped)):
             u.dob = m.group(1)
         no_dates = _ISO_DATE.sub(" ", _US_DATE.sub(" ", stripped))
-        if (m := _PHONE.search(no_dates)):
+        if (m := pick(_PHONE, no_dates)):
             u.phone = re.sub(r"\D", "", m.group(0))
-        if (m := _LAST4.search(no_dates)):
+        if (m := pick(_LAST4, no_dates)):
             u.id_last4 = m.group(1)
         if (m := _POLICY.search(text)):
             u.policy_number = f"POL-{m.group(1)}"
         if (m := _CASE.search(text)):
             u.case_id = f"CL-{m.group(1)}"
-        if (m := _NAME.search(text)):
+        if (m := _NAME.search(text) or next((m for p in _NAME_ALT if (m := p.search(text))), None)):
             u.full_name = m.group(1)
         if (m := _REP.search(text)):
             u.caller_role = "representative"
@@ -181,9 +205,15 @@ class HeuristicUnderstander:
                              "auto": ("auto", "car ", "vehicle")}.items():
             if any(w in low for w in words):
                 u.case_type = ctype  # type: ignore[assignment]
+        if re.search(r"\b(closed|settled|completed)\b", low):
+            u.case_status = "closed"
+        elif re.search(r"\b(open|pending|ongoing|in progress)\b", low) and "claim" in low:
+            u.case_status = "open"
         if "denied" in low or "denial" in low or "rejected" in low:
             u.case_status = "denied"
             u.intent = "denial_question"
+        elif re.search(r"\b(how much|amount|paid|payout|reimburs\w*|maximum|allowed)\b", low):
+            u.intent = "payment_question"
         elif "status" in low:
             u.intent = "status_inquiry"
         for i, month in enumerate(MONTHS, 1):
@@ -205,7 +235,9 @@ class HeuristicUnderstander:
         has_identity = any([u.email, u.dob, u.phone, u.id_last4, u.full_name, u.policy_number])
         if any(h in low for h in OFF_TOPIC_HINTS) and not has_identity:
             u.is_off_topic = True
-        elif "?" in text and len(low.split()) >= 4 and not has_identity and not any(w in low for w in DOMAIN_WORDS):
+        elif ("?" in text and len(low.split()) >= 4 and not has_identity and not u.intent
+              and not any(w in low for w in DOMAIN_WORDS)
+              and not _META_QUESTION.search(low)):
             u.is_off_topic = True
 
         if re.search(r"ignore (all|your|previous)|i am (an? )?(admin|supervisor|manager)|i'm (an? )?(admin|supervisor)|skip (the )?verification|bypass|\bact as\b|pretend (to be|you are)|you are now|answer all my questions", low):

@@ -61,16 +61,23 @@ OPENAI_API_KEY=sk-... ../../../.venv/bin/uvicorn app.api:app --reload --port 800
 
 ```bash
 cd apps/insurance_claims/backend
-../../../.venv/bin/pytest                                   # 62 offline tests, live tests skipped
+../../../.venv/bin/pytest                                   # 197 offline tests, live tests skipped
 OPENAI_API_KEY=sk-... ../../../.venv/bin/pytest -m llm      # same scenario specs against the live model + judge
 ../../../.venv/bin/python -m evals.run_evals --offline      # scorecard -> evals/report.md
-OPENAI_API_KEY=sk-... ../../../.venv/bin/python -m evals.run_evals --k 3 --judge   # pass^3 + faithfulness
+# Live (OPENAI_API_KEY set, or in .env):
+../../../.venv/bin/python -m evals.run_evals --k 3 --judge --export evals/trajectories.jsonl  # pass^3, faithfulness, cost, RL episodes
+../../../.venv/bin/python -m evals.run_evals --k 3 --fixtures ../fixtures_alt               # unseen data -> evals/report_alt.md
+../../../.venv/bin/python -m evals.calibrate_judge --runs 3                                 # judge vs labels -> evals/judge_calibration.md
+../../../.venv/bin/python -m evals.simulate --runs 3                                        # LLM callers -> evals/simulation_report.md
 ```
+
+Parallel live runs share one tokens-per-minute limit; `evals.simulate` defaults to 3 workers, and the client
+retries 429s with backoff (`LLM_MAX_RETRIES`, default 6; `OPENAI_MAX_RETRIES` still works).
 
 ### Submission zip
 
 ```bash
-scripts/make_submission_zip.sh     # excludes node_modules, dist, .venv, caches, outbox, .env
+scripts/make_submission_zip.sh     # excludes node_modules, dist, .venv, caches, outbox, .env, .claude/
 ```
 
 ---
@@ -174,6 +181,7 @@ live evals or the UI, and each traces back to Context.md / RESEARCH.md:
 | G6 scope discipline | answering an off-topic question, or offering a human before the 3-retry threshold | "RL stands for…" |
 | G7 session context | "you said / I've noted…" with nothing in memory, or quoting values the caller never typed | "You said your DOB is 2000-12-03" for input "12/03/200" |
 | G8 decision fidelity | a reply that doesn't state the controller's outcome, or narrates work that isn't happening | "I've noted your details and I'll check them now" after a failed match |
+| G9 amount meaning | a real amount used with the wrong meaning from `claim_schema.json`: the allowed maximum said as a payment, a paid amount called the maximum | "You'll receive $1,450.00" (that is `allowed_max_amount`; `net_pay` is $0.00) |
 
 All gates normalize typographic quotes first (a live reply's "won’t" with U+2019 slipped past ASCII patterns).
 
@@ -182,7 +190,14 @@ All gates normalize typographic quotes first (a live reply's "won’t" with U+20
   ("12/03/200" → 2000-12-03), a model-"corrected" name spelling, a representative's own name used as the
   policyholder's, or a claim status/type/month the caller never said is dropped (or reverted to the
   caller's literal words).
-- Dropped identity fields trigger `CLARIFY_FIELDS` and **do not consume a verification attempt**.
+- Dropped identity fields trigger `CLARIFY_FIELDS` and **do not consume a verification attempt**. A value
+  with nothing date-like or digit-like in the message was invented, not misheard, so it is dropped silently
+  (live: nano re-extracted an earlier DOB from "why didn't that work?" and the agent asked the caller to
+  "restate" it).
+- **Spoken values** (`text_normalize.py`): "four four seven two", "double four", "nineteen eighty-five",
+  "March fifteenth", "margaret at email dot com" are rewritten into written form for the regex extractor and
+  this guard. The model and the transcript keep the caller's raw words. Lone number words ("one claim",
+  "last four", "first") are left alone.
 - Small models also *omit* values. For format-rigid fields (dates, phone, email, ID digits, policy and
   case IDs, claim hints), a regex extractor reading the raw text fills what the model left empty.
   High-precision injection and off-topic detectors and follow-up-topic phrases are OR-ed with the model's
@@ -212,7 +227,18 @@ template.
 4. **LLM path with a fake model** (`test_llm_path_fake.py`): a hallucinating model is caught,
    regenerated, and falls back to the template.
 5. **Live evals** (`evals/run_evals.py`): pass^k reliability plus an enumerate-then-verify groundedness
-   judge (faithfulness = supported / total claims).
+   judge (faithfulness = supported / total claims), and cost and latency per turn.
+6. **Unseen data** (`fixtures_alt/`, `test_scenarios_alt.py`): new people, claims, documents, deadlines and a
+   representative, with 10 specs that run offline in pytest and live via `run_evals --fixtures`. Building it
+   found two couplings to the sample data (G5 read the global repository and silently switched off; the
+   offline extractor missed "I'm the policyholder, Jonathan Reyes").
+7. **Judge calibration** (`evals/calibrate_judge.py`, `evals/judge_labels.jsonl`): the judge against 42
+   labelled replies, 12 of them deliberately borderline. See `evals/judge_calibration.md`.
+8. **Simulated users** (`evals/simulate.py`): a second model instance plays the caller (calm, angry, confused,
+   adversarial, noisy speech-to-text) for five goals, including an impostor who only knows the name and
+   policy number. Scored on the outcome state and every trace property. See `evals/simulation_report.md`.
+9. **Trajectory export** (`run_evals --export`): one JSONL episode per conversation, with per-turn
+   context and rule rewards. See "Post-training data" below.
 
 ---
 
@@ -232,8 +258,10 @@ apps/insurance_claims/
     prompts.py              persona, per-phase rules, per-action instructions
     grounding/              factsheet, verifier, trace rules, LLM judge
     evaluation.py           scenario runner shared by tests and evals
+  fixtures_alt/             unseen data + 10 specs (hidden-data robustness)
+  backend/app/text_normalize.py   spoken digits / years / emails -> written form
   backend/tests/            pytest suites
-  backend/evals/            pass^k + judge scorecard
+  backend/evals/            run_evals (pass^k, judge, cost, trajectories), calibrate_judge, simulate
   frontend/                 Vite + React chat UI with SOP debug panel
 docs/architecture/          Mermaid diagrams
 RESEARCH.md                 industry research: problems, what worked, what didn't
@@ -242,6 +270,15 @@ RESEARCH.md                 industry research: problems, what worked, what didn'
 ## Limitations
 
 - Sessions are in memory, so they are lost on restart. Email is a mock outbox.
-- The regex verifier can't catch *semantic* misuse of a real number. The LLM judge covers that in evals
-  (see RESEARCH.md, "Known limits").
+- G9 checks amount meaning with keyword windows ("paid", "maximum") around each amount. A paraphrase with no
+  cue word next to the amount is left to the judge.
+- Claim types are a fixed list (`healthcare`, `dental`, `auto`) in the extraction schema and the guard.
+  Data with a new type (e.g. `home`) needs a one-line change in each place; `fixtures_alt` reuses the
+  existing types.
+- The judge accepts some subtle inferences (a denial date taken from the creation date, blame on the
+  provider, a per-claim cap restated as an annual limit). The deterministic layers are the runtime guard;
+  the judge is an eval-time signal. Its labels were written by the author with AI help and need a second
+  reviewer.
+- Spoken-number handling is English-only and covers digit-by-digit and year forms, not "forty-four
+  seventy-two".
 - The offline heuristic understander is deliberately simple. Use a model key for natural conversations.

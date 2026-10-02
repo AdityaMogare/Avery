@@ -51,9 +51,9 @@ def test_hallucinated_reply_regenerated_then_accepted():
     violations = [e for e in s.trace if e.type == "grounding_violation"]
     assert len(violations) == 1
     assert any("30 days" in v for v in violations[0].data["violations"])
-    # Known limit: $1,450.00 IS a real fact (allowed_max_amount), so the regex layer accepts the number even
-    # though "you will get $1,450" misuses it. Semantic misuse is the LLM judge's job (test_scenarios_llm.py).
-    assert not any("1,450.00" in v for v in violations[0].data["violations"])
+    # $1,450.00 IS a real fact (allowed_max_amount), so the value check accepts the number; G9 catches the
+    # misuse ("will get" = a payment, but the field is a cap). This used to be a documented known limit.
+    assert any(v.startswith("G9") and "1,450.00" in v for v in violations[0].data["violations"])
     assert [e.data["responder"] for e in s.trace if e.type == "response"] == ["llm_regenerated"]
 
 

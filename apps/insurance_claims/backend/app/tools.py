@@ -18,7 +18,7 @@ ALLOWED_TOOLS: dict[Phase, set[str]] = {
     Phase.RESOLVE_INTENT: {"list_claims", "get_claim", "transfer_to_human"},
     Phase.PROCESS_CASE: {"list_claims", "get_claim", "get_document_guidance", "transfer_to_human"},
     Phase.POST_PROCESS: {"get_claim", "get_document_guidance", "send_email_summary", "transfer_to_human"},
-    Phase.HUMAN_TRANSFER: {"transfer_to_human"},
+    Phase.HUMAN_TRANSFER: {"transfer_to_human", "send_email_summary"},  # summary offered before the handoff
     Phase.ENDED: set(),
 }
 REQUIRES_VERIFIED = {"list_claims", "get_claim", "get_document_guidance", "send_email_summary"}
