@@ -154,18 +154,25 @@ class TemplateResponder:
         if "ANSWER_CASE" in a:
             self._answer_case(state, decision, say, v, p)
 
-        if "OFFER_EMAIL" in a:
+        if "OFFER_EMAIL" in a and "TRANSFER_HUMAN" not in a:
             say(f"Before you go, would you like me to email a summary of our conversation, including what we discussed, "
                 f"the claim status and next steps, to {v('email.to_masked')}? Just say send or skip.",
                 "email.to_masked", "email.summary_contents")
+        transferring = "ALREADY_TRANSFERRED" in a
         if "EMAIL_SENT" in a:
-            say(f"Done. I've sent the summary to {v('email.sent_to_masked')}. Thank you for calling!", "email.sent_to_masked")
+            say(f"Done. I've sent the summary to {v('email.sent_to_masked')}." + ("" if transferring else " Thank you for calling!"),
+                "email.sent_to_masked")
         if "EMAIL_SKIPPED" in a:
-            say("No problem, I won't send an email. Thank you for calling, and take care!", "email.status")
+            say("No problem, I won't send an email." + ("" if transferring else " Thank you for calling, and take care!"),
+                "email.status")
         if "OFFER_HUMAN" in a:
             say("Would you like me to connect you with a human representative?", "offer.human_transfer_reason", "sop.human_transfer")
         if "TRANSFER_HUMAN" in a:
             say("I'm connecting you with a human representative now.", "transfer.reason", "transfer.next")
+            if "OFFER_EMAIL" in a:
+                say(f"Before they join, would you like me to email a summary of our conversation, including what we "
+                    f"discussed, the claim status and next steps, to {v('email.to_masked')}? Just say send or skip.",
+                    "email.to_masked", "email.summary_contents")
         if "ALREADY_TRANSFERRED" in a:
             say("A human representative will be with you shortly; thank you for your patience.", "transfer.reason")
         if "GOODBYE" in a:

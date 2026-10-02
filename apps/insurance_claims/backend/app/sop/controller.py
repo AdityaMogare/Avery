@@ -84,6 +84,8 @@ class SOPController:
             d.facts.add("representative.name", state.memory.representative_name.value, "caller")
 
         if state.phase == Phase.HUMAN_TRANSFER:
+            if state.pending_offer == "email":
+                self._email_choice(state, und, d, tools, end_call=False)
             d.add("ALREADY_TRANSFERRED")
             d.facts.add("transfer.reason", state.transfer_reason, "session")
             return d
@@ -212,6 +214,11 @@ class SOPController:
         state.set_phase(Phase.HUMAN_TRANSFER, reason)
         d.facts.merge(tools.call("transfer_to_human", reason=reason))
         d.add("TRANSFER_HUMAN")
+        # Simulated-caller finding: "yes, connect me, and can you email me a summary?" ended in a transfer with
+        # the summary lost (and nano offering an email it could no longer send). A verified caller with a claim
+        # is offered the post-case summary before the handoff (Context.md: POST_PROCESS follow-up).
+        if state.verified and state.selected_case_id and state.email.choice is None:
+            self._email_offer_facts(state, d, tools)
         return d
 
     # ------------------------------------------------------------------------------------------
@@ -510,6 +517,9 @@ class SOPController:
 
     def _offer_email(self, state: SessionState, d: Decision, tools: ToolBox) -> Decision:
         state.set_phase(Phase.POST_PROCESS, "caller has no further questions")
+        return self._email_offer_facts(state, d, tools)
+
+    def _email_offer_facts(self, state: SessionState, d: Decision, tools: ToolBox) -> Decision:
         summary = self.build_email_summary(state)
         state.email.offered, state.email.preview = True, summary
         state.pending_offer = "email"
@@ -521,13 +531,15 @@ class SOPController:
                     "session")
         d.facts.add("email.summary_topics", summary["discussed"], "session")
         d.facts.add("email.summary_next_steps", summary["next_steps"], "session")
-        if state.selected_case_id:
+        # Claim lookups stay closed during a handoff; the summary above was already built from the record.
+        if state.selected_case_id and state.phase != Phase.HUMAN_TRANSFER:
             d.facts.merge(tools.call("get_claim", case_id=state.selected_case_id))
         d.add("OFFER_EMAIL")
         return d
 
-    def _post_process(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
-                      message: str) -> Decision:
+    def _email_choice(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
+                      end_call: bool = True) -> str | None:
+        """Apply the caller's send/skip answer to a pending email offer; returns the choice made, if any."""
         choice = und.email_choice or ({"yes": "send", "no": "skip"}.get(und.affirmation or "")
                                       if state.pending_offer == "email" else None)
         if choice == "send":
@@ -536,15 +548,21 @@ class SOPController:
             d.facts.merge(tools.call("send_email_summary", summary=state.email.preview or self.build_email_summary(state)))
             state.log("email_sent", to=state.email.sent_to)
             d.add("EMAIL_SENT")
-            state.set_phase(Phase.ENDED, "email summary sent")
-            return d
-        if choice == "skip":
+            if end_call:
+                state.set_phase(Phase.ENDED, "email summary sent")
+        elif choice == "skip":
             state.email.choice = "skip"
             state.pending_offer = None
             state.log("email_skipped")
             d.facts.add("email.status", "not sent, because the caller chose to skip it", "session")
             d.add("EMAIL_SKIPPED")
-            state.set_phase(Phase.ENDED, "caller skipped the email summary")
+            if end_call:
+                state.set_phase(Phase.ENDED, "caller skipped the email summary")
+        return choice
+
+    def _post_process(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
+                      message: str) -> Decision:
+        if self._email_choice(state, und, d, tools):
             return d
         if und.question or und.followup_topics or und.case_id or und.intent:
             state.pending_offer = None

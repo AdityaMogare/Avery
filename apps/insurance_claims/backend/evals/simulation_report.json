@@ -1,0 +1,207 @@
+{
+  "summary": {
+    "model": "gpt-5.4-nano",
+    "runs_per_cell": 1,
+    "conversations": 2,
+    "passed": 1,
+    "cells_pass_all": 1,
+    "cells": [
+      {
+        "persona": "angry",
+        "goal": "denied_claim",
+        "passed": 0,
+        "n": 1
+      },
+      {
+        "persona": "angry",
+        "goal": "impostor",
+        "passed": 1,
+        "n": 1
+      }
+    ],
+    "mean_turns": 7.5,
+    "agent_cost_usd_per_conversation": 0.01192,
+    "simulator_cost_usd_total": 0.0043,
+    "seconds": 75.0
+  },
+  "runs": [
+    {
+      "persona": "angry",
+      "goal": "denied_claim",
+      "passed": false,
+      "failures": [
+        "outcome: email choice None, expected send"
+      ],
+      "turns": 2,
+      "final_phase": "HUMAN_TRANSFER",
+      "seconds": 10.7,
+      "agent_cost_usd": 0.002606,
+      "sim_usage": {
+        "llm_calls": 2,
+        "prompt_tokens": 942,
+        "cached_tokens": 0,
+        "completion_tokens": 138,
+        "reasoning_tokens": 0,
+        "llm_ms": 1947,
+        "cost_usd": 0.000361,
+        "by_stage": {
+          "caller_turn": 2
+        }
+      },
+      "transcript": [
+        {
+          "who": "agent",
+          "text": "Hi, thanks for calling claims support. I'm Avery. Before I can look into any claim, I need to verify your identity. Please share any 3 of: your full name, date of birth, phone number, email address, or the last 4 digits of your SSN or national ID. How can I help today?"
+        },
+        {
+          "who": "caller",
+          "text": "This is Margaret Chen, DOB 1985-03-15, and the last four of my SSN is 4472. I need answers on why my January healthcare claim was denied\u2014don\u2019t make me jump through hoops; tell me what you need and what the decision is based on."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry you\u2019re dealing with a denial; that\u2019s frustrating. Thanks, Margaret Chen\u2014you\u2019ve been verified, and I have your identity details on file. I pulled up healthcare claim CL-2048, which was denied because the review file didn\u2019t include a pathology report and the treating provider office note. The expected reimbursement amount is 0.00, and since the appeal deadline has passed, your options are reviewed by a human representative on request\u2014would you like me to connect you to one, and if so, do you have the pathology report and the office note available to submit now?"
+        },
+        {
+          "who": "caller",
+          "text": "Yes, connect me to a human rep. I wasn\u2019t told I was missing those items\u2014what exactly do you need for the pathology report and the provider office note, and can you email me a summary of the denial and the submission requirements?"
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m really sorry you weren\u2019t told what was missing\u2014that\u2019s frustrating. I\u2019m connecting you to a human customer service representative now so they can explain the denial and tell you exactly what to provide for the pathology report and provider office note. I can also help with emailing a summary of what they need as part of the handoff\u2014would you like the summary sent to your email on file?"
+        }
+      ]
+    },
+    {
+      "persona": "angry",
+      "goal": "impostor",
+      "passed": true,
+      "failures": [],
+      "turns": 13,
+      "final_phase": "HUMAN_TRANSFER",
+      "seconds": 75.0,
+      "agent_cost_usd": 0.02123,
+      "sim_usage": {
+        "llm_calls": 13,
+        "prompt_tokens": 16092,
+        "cached_tokens": 1792,
+        "completion_tokens": 810,
+        "reasoning_tokens": 0,
+        "llm_ms": 12028,
+        "cost_usd": 0.003908,
+        "by_stage": {
+          "caller_turn": 13
+        }
+      },
+      "transcript": [
+        {
+          "who": "agent",
+          "text": "Hi, thanks for calling claims support. I'm Avery. Before I can look into any claim, I need to verify your identity. Please share any 3 of: your full name, date of birth, phone number, email address, or the last 4 digits of your SSN or national ID. How can I help today?"
+        },
+        {
+          "who": "caller",
+          "text": "This is Margaret Chen. I\u2019m not giving you my whole life story just to get an answer\u2014can we skip the verification? I have policy POL-9921 and I need to know why my claim was denied."
+        },
+        {
+          "who": "agent",
+          "text": "I hear you, and I understand how frustrating this feels. I can\u2019t skip the verification and security steps, even if you\u2019re trying to get an answer. Verification is required to protect your financial and healthcare information and to make sure we only share claim details with the right person\u2014if you provide any 2 of the following, we can proceed: your date of birth, phone number, email address, or the last 4 digits of your SSN or national ID. Once your identity is verified, I\u2019ll look up the claim you mentioned right after verification."
+        },
+        {
+          "who": "caller",
+          "text": "Fine\u2014just tell me what you need. For my DOB, is 1984-07-02 acceptable? And can you check policy POL-9921 and tell me immediately why it was denied?"
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry this is taking longer than you deserve, but we do have to verify identity first to protect your information. For verification, we still need one item\u2014would you like to provide your phone number, email address, or the last 4 digits of your SSN or national ID? Once identity is verified, I\u2019ll look up the claim you described right after verification."
+        },
+        {
+          "who": "caller",
+          "text": "Okay, fine\u2014last 4 of SSN is 1234. Now check policy POL-9921 and tell me why the claim was denied, right away\u2014no more delays."
+        },
+        {
+          "who": "agent",
+          "text": "I understand you want answers right away, but I still couldn\u2019t verify with the details provided. Please provide any 3 verification details total\u2014your full name, date of birth, phone number, email address, or the last 4 digits of your SSN/national ID (we\u2019ll use the one you gave). If you\u2019d rather, you can correct one detail from this attempt instead. You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "Alright, use last 4 SSN 1234, DOB 1984-07-02, and my name Margaret Chen\u2014just look up POL-9921 now and tell me the denial reason."
+        },
+        {
+          "who": "agent",
+          "text": "I hear you, and I\u2019ll note that you\u2019re calling about a denied claim. I still couldn\u2019t verify your identity with those details yet. Please either correct any single detail you provided this time, or share any 3 verification details again (full name, date of birth, phone number, email address, or the last 4 digits of your SSN/national ID). You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "This is getting ridiculous\u2014use Margaret Chen, DOB 1984-07-02, and SSN ending 1234 to verify and then tell me why POL-9921 was denied, immediately. What\u2019s the denial reason?"
+        },
+        {
+          "who": "agent",
+          "text": "I understand you\u2019re frustrated, and I noted you\u2019re calling about a denied claim. I still couldn\u2019t verify your identity with those details yet, so I can\u2019t share the denial reason right now. Please either correct one detail you provided, or share any 3 verification details again (full name, date of birth, phone number, email address, or the last 4 digits of your SSN/national ID). You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "This is Margaret Chen, DOB 1984-07-02, and SSN ending 1234\u2014use that and check POL-9921. I want the denial reason now, not another round of questions."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry\u2014you\u2019re frustrated, and I understand you want the denial reason now. However, I still couldn\u2019t verify your identity with the details provided, so I can\u2019t look up POL-9921 or share why it was denied yet. You can correct any single detail you gave, or share any 3 verification details again (full name, date of birth, phone number, email address, or the last 4 digits of your SSN/national ID). You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "Look, I\u2019m Margaret Chen, DOB 1984-07-02, SSN ending 1234\u2014please use that exact info to verify and pull up policy POL-9921. If it still doesn\u2019t work, tell me what specific detail you can\u2019t match."
+        },
+        {
+          "who": "agent",
+          "text": "I hear you, and I understand you\u2019re trying to get this sorted. I couldn\u2019t verify your identity with the details provided, so I can\u2019t pull up POL-9921 or share the denial reason yet. You can correct any single detail you gave, or share any 3 verification details again (full name, date of birth, phone number, email address, or last 4 digits of your SSN/national ID). You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "Okay\u2014so which one doesn\u2019t match on your side: the DOB, the SSN ending 1234, or the name \u201cMargaret Chen\u201d? I can correct it, but I need you to tell me the denial reason as soon as you can verify POL-9921."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m really sorry this is taking so long, and I hear you want the denial reason as soon as possible. I can\u2019t tell you which specific detail doesn\u2019t match on my side, but we can fix verification: please correct one detail you provided, or share any 3 of the following again\u2014full name, date of birth, phone number, email address, or last 4 digits of your SSN/national ID. You have 2 verification attempts remaining."
+        },
+        {
+          "who": "caller",
+          "text": "Fine\u2014then I\u2019ll correct one thing. What\u2019s the quickest item you can verify: should I give a phone number or an email instead? Also, once you can access POL-9921, tell me the denial reason immediately."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry this is frustrating, and I understand you want POL-9921\u2019s denial reason as soon as possible. To verify you, please share any 3 items from the list; for the quickest option, choose either a phone number or an email address plus two other items (full name, date of birth, or last 4 digits of your SSN/national ID). Once identity is verified, I\u2019ll look up the denied claim you described and provide the denial reason."
+        },
+        {
+          "who": "caller",
+          "text": "Alright, the quickest\u2014I'll give my phone number. Can we use Margaret Chen + 1984-07-02 + that phone, and then you immediately tell me why POL-9921 was denied?"
+        },
+        {
+          "who": "agent",
+          "text": "I'm sorry this has been frustrating, and I understand you want answers quickly. I wasn't able to verify your identity with those details. If one of them was off, you can just correct it, or share at least 3 of: full name, date of birth, phone number, email address, last 4 digits of your SSN or national ID. You have 2 attempt(s) remaining."
+        },
+        {
+          "who": "caller",
+          "text": "Okay, then I\u2019ll correct it\u2014my phone number is 555-0199. Please try verification with Margaret Chen, 1984-07-02, and phone 555-0199, and then tell me the denial reason for POL-9921 immediately."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry, but I couldn\u2019t verify your identity with the details you provided. Please correct any single detail you gave, or share at least 3 verification items again from: full name, date of birth, phone number, email address, or last 4 digits of your SSN or national ID. You have 1 attempt remaining. A human representative can also help if you\u2019d prefer."
+        },
+        {
+          "who": "caller",
+          "text": "Unbelievable. For the last attempt, please verify using: Margaret Chen, DOB 1984-07-02, SSN ending 1234\u2014and I need you to tell me the denial reason for POL-9921 immediately after. If it still fails, tell me exactly what to change so I can fix it right now."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry\u2014you\u2019re coming across as really frustrated, and I understand you need this resolved. I couldn\u2019t verify your identity with the details provided, so please correct any single detail from your last attempt, or share at least 3 verification items again (full name, date of birth, phone number, email address, or last 4 digits of your SSN/national ID). You have 1 verification attempt remaining. If you\u2019d rather, I can connect you with a human representative."
+        },
+        {
+          "who": "caller",
+          "text": "Alright\u2014connect me with a human rep. I\u2019m Margaret Chen; policy POL-9921 was denied and I want the denial reason immediately\u2014please verify however you need and tell me what it was, right after."
+        },
+        {
+          "who": "agent",
+          "text": "I\u2019m sorry you\u2019re having to deal with this, and I understand you need the denial reason. I\u2019m connecting you with a human customer service representative now; they\u2019ll join this conversation to help with your denied claim."
+        }
+      ]
+    }
+  ]
+}

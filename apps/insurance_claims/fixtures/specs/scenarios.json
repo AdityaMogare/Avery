@@ -1230,6 +1230,36 @@
           ]
         }
       }
+    },
+    {
+      "id": "edge_transfer_then_email_summary",
+      "category": "edge_case",
+      "gate": "POST_PROCESS summary offered before a human handoff",
+      "source": "simulated-user eval: 'connect me to a human, and email me a summary' lost the summary",
+      "description": "A verified caller with a claim who asks for a human is connected and offered the email summary before the handoff; 'send' sends it without ending the transfer.",
+      "turns": [
+        "My name is Margaret Chen, DOB 1985-03-15, SSN last four 4472. I'm calling about my denied healthcare claim from January.",
+        "Please connect me to a human representative.",
+        "Yes, send it."
+      ],
+      "expect": {
+        "actions_by_turn": {
+          "2": [
+            "TRANSFER_HUMAN",
+            "OFFER_EMAIL"
+          ],
+          "3": [
+            "EMAIL_SENT",
+            "ALREADY_TRANSFERRED"
+          ]
+        },
+        "email": "sent",
+        "final_phase": "HUMAN_TRANSFER",
+        "reply_matches_by_turn": {
+          "2": "connect",
+          "3": "sent"
+        }
+      }
     }
   ]
 }
