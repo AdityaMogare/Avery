@@ -18,19 +18,35 @@ verifier checks this before each reply is sent.
 
 ```bash
 docker build -t sop-agent .
-docker run --rm -p 8000:8000 -e OPENAI_API_KEY=sk-... sop-agent
+docker run --rm -p 8000:8000 -e OPENAI_API_KEY=sk-... sop-agent   # or: --env-file .env
 # open http://localhost:8000
 ```
 
-The token can also be pasted into the **OpenAI API key** field in the UI. It is sent per request in the
-`X-OpenAI-Key` header and kept only in the browser's sessionStorage. With no key at all, the app runs in
-**offline mode** (deterministic regex understanding + template replies), which is useful for trying the
-SOP gates without a model.
+Any of these keys works, either as an env var or pasted into the **LLM API key** field in the UI. The provider
+is detected from the key prefix:
 
-Optional env vars (see `.env.example`): `OPENAI_MODEL` (default `gpt-5.4-nano`), `OPENAI_JUDGE_MODEL`
-(defaults to the agent model; set a stronger one for stricter judging), `OPENAI_REASONING_EFFORT`,
-`OPENAI_BASE_URL`, `AGENT_TODAY` (business date for derived facts such as "appeal deadline passed"),
-`LIVE_JUDGE=true` (runs the groundedness judge on every live reply).
+| Provider | Key prefix | Env var | Default model |
+|---|---|---|---|
+| OpenAI | `sk-`, `sk-proj-` | `OPENAI_API_KEY` | `gpt-5.4-nano` |
+| Anthropic | `sk-ant-` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| Google Gemini | `AIza` | `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| OpenRouter | `sk-or-` | `OPENROUTER_API_KEY` | `openai/gpt-5.4-nano` |
+| Groq | `gsk_` | `GROQ_API_KEY` | `openai/gpt-oss-120b` |
+| xAI | `xai-` | `XAI_API_KEY` | `grok-4` |
+
+If the prefix is ambiguous, pick the provider in the UI's **Provider** dropdown or set `LLM_PROVIDER`. Any
+other OpenAI-compatible endpoint works through `LLM_BASE_URL` + `LLM_API_KEY`. The UI sends the key per
+request in the `X-LLM-Key` header (the older `X-OpenAI-Key` header still works) and keeps it only in the
+browser's sessionStorage. The mode badge shows `llm:<provider>:<model>`. If the provider rejects the key, the
+error appears in the UI and that turn falls back to offline. With no key at all, the app runs in
+**offline mode** (deterministic regex understanding + template replies), which is useful for trying the SOP
+gates without a model.
+
+Optional env vars (see `.env.example`): `LLM_MODEL` (overrides the provider's default model), `LLM_JUDGE_MODEL`
+(defaults to the agent model; set a stronger one for stricter judging), `LLM_PROVIDER`, `LLM_BASE_URL`,
+`OPENAI_REASONING_EFFORT` (OpenAI only), `AGENT_TODAY` (business date for derived facts such as "appeal deadline
+passed"), `LIVE_JUDGE=true` (runs the groundedness judge on every live reply). The old `OPENAI_MODEL`,
+`OPENAI_JUDGE_MODEL` and `OPENAI_BASE_URL` names still work.
 
 ### Local development
 
