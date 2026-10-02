@@ -78,7 +78,7 @@ ACTION_INSTRUCTIONS = {
     "ANSWER_AMOUNTS": "The caller asked about money. Give the amounts they asked about, each with its meaning: net_pay = what the insurer has actually paid; expected_reimbursement_amount = the expected payment (an expectation, not a promise); allowed_max_amount = the most the insurer pays for a covered service (a cap, never a payout). Do not mention net_fee unless asked. Never say the caller will get or receive an amount. Say the names in plain words (net pay, expected reimbursement, maximum allowed amount), never field names with underscores.",
     "ANSWER_CASE": "Answer the caller's question about the selected claim from FACTS. If they haven't asked anything specific yet, give the status and, if denied, the reason, documents needed and the appeal deadline status.",
     "CASE_UNAVAILABLE": "Say you can't access that claim.",
-    "OFFER_EMAIL": "Offer to email a summary (email.summary_contents) to email.to_masked, citing both, and ask if they want it sent or skipped.",
+    "OFFER_EMAIL": "Offer to email a summary (email.summary_contents) to email.to_masked, citing both, and ask if they want it sent or skipped. If TRANSFER_HUMAN is also an action, say you're connecting them first, then offer the summary before the representative joins.",
     "EMAIL_SENT": "Confirm the summary was sent to email.sent_to_masked and close warmly.",
     "EMAIL_SKIPPED": "Confirm no email will be sent (cite email.status) and close warmly.",
     "TRANSFER_HUMAN": "Tell them you're connecting them to a human representative now (transfer.reason, transfer.next). Make no other promises about the handoff.",
