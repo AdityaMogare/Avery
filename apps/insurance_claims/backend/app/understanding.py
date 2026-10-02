@@ -77,6 +77,8 @@ Rules:
   mother"), set caller_role=representative, representative_name/relationship to the caller, and identity
   fields to the policyholder's details.
 - Normalize dob to YYYY-MM-DD. Phone digits only. Months as numbers 1-12.
+- Spoken values count (this is a phone line): "four four seven two" -> id_last4 "4472", "March fifteenth
+  nineteen eighty five" -> dob "1985-03-15", "margaret at email dot com" -> email "margaret@email.com".
 - "denied healthcare claim from January" -> case_status=denied, case_type=healthcare, case_month=1,
   intent=denial_question.
 - "What do I need to send?" / "what documents?" -> intent=document_submission, lacks_document=false.
