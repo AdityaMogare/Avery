@@ -61,7 +61,10 @@ def snapshot(state: SessionState) -> dict[str, Any]:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "model": config.OPENAI_MODEL, "server_key_configured": bool(config.env_api_key())}
+    key = config.env_api_key()
+    provider = config.detect_provider(key) if key else None
+    return {"ok": True, "provider": provider, "model": config.default_model(provider) if provider else None,
+            "server_key_configured": bool(key), "providers": list(config.PROVIDERS)}
 
 
 @app.post("/api/session")
