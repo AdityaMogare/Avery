@@ -58,27 +58,35 @@ export type ChatResponse = {
   state: Snapshot;
 };
 
-function headers(apiKey: string): HeadersInit {
+/** Any provider's key; the backend detects the provider from the key prefix unless one is chosen. */
+export type LlmCreds = { key: string; provider: string };
+
+export const PROVIDERS = ["auto", "openai", "anthropic", "gemini", "openrouter", "groq", "xai"];
+
+function headers(llm?: LlmCreds): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey.trim()) h["X-OpenAI-Key"] = apiKey.trim();
+  if (llm?.key.trim()) {
+    h["X-LLM-Key"] = llm.key.trim();
+    if (llm.provider !== "auto") h["X-LLM-Provider"] = llm.provider;
+  }
   return h;
 }
 
-async function post<T>(url: string, body: unknown, apiKey: string): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: headers(apiKey), body: JSON.stringify(body) });
+async function post<T>(url: string, body: unknown, llm?: LlmCreds): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: headers(llm), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json() as Promise<T>;
 }
 
-export const newSession = (consentScenario: string, apiKey: string) =>
+export const newSession = (consentScenario: string, llm: LlmCreds) =>
   post<{ session_id: string; reply: string; mode: string; state: Snapshot; events: TraceEvent[] }>(
     "/api/session",
     { consent_scenario: consentScenario },
-    apiKey,
+    llm,
   );
 
-export const sendMessage = (sessionId: string, message: string, apiKey: string) =>
-  post<ChatResponse>("/api/chat", { session_id: sessionId, message }, apiKey);
+export const sendMessage = (sessionId: string, message: string, llm: LlmCreds) =>
+  post<ChatResponse>("/api/chat", { session_id: sessionId, message }, llm);
 
 export type Scenario = {
   id: string;
@@ -105,4 +113,4 @@ export async function listScenarios(): Promise<Scenario[]> {
 }
 
 export const evaluateSession = (sessionId: string, scenarioId: string) =>
-  post<EvalResult>(`/api/session/${sessionId}/evaluate`, { scenario_id: scenarioId }, "");
+  post<EvalResult>(`/api/session/${sessionId}/evaluate`, { scenario_id: scenarioId });

@@ -1,6 +1,6 @@
-"""Live-model runs of the same specs plus the LLM groundedness judge. Skipped without OPENAI_API_KEY.
+"""Live-model runs of the same specs plus the LLM groundedness judge. Skipped without an LLM API key.
 
-Run: OPENAI_API_KEY=... pytest -m llm
+Run: OPENAI_API_KEY=... pytest -m llm   (or ANTHROPIC_API_KEY / GEMINI_API_KEY / LLM_API_KEY)
 """
 
 import pytest

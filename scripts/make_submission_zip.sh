@@ -6,6 +6,6 @@ OUT="${1:-sop-guided-conversational-agent.zip}"
 rm -f "$OUT"
 zip -rq "$OUT" . \
   -x "*.git/*" "*node_modules/*" "*/dist/*" "*.venv/*" "*__pycache__/*" "*.pytest_cache/*" \
-     "*/outbox/*" "*.DS_Store" ".env" "*.zip"
+     "*/outbox/*" "*.DS_Store" "*.env" "*.claude/*" "*.zip"
 du -h "$OUT"
 unzip -l "$OUT" | tail -1

@@ -34,12 +34,43 @@ FIXTURES_DIR = Path(os.getenv("FIXTURES_DIR", PROJECT_DIR / "fixtures"))
 FRONTEND_DIST = Path(os.getenv("FRONTEND_DIST", PROJECT_DIR / "frontend" / "dist"))
 OUTBOX_DIR = Path(os.getenv("OUTBOX_DIR", BACKEND_DIR / "outbox"))
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")
+# Provider registry. The key pasted in the UI (or set in the environment) picks the provider by prefix;
+# every provider except Anthropic is reached through its OpenAI-compatible endpoint.
+PROVIDERS: dict[str, dict] = {
+    "openai": {"base_url": None, "model": "gpt-5.4-nano", "prefixes": ("sk-", "sk-proj-")},
+    "anthropic": {"base_url": None, "model": "claude-opus-5-5", "prefixes": ("sk-ant-",)},
+    "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+               "model": "gemini-2.5-flash", "prefixes": ("AIza",)},
+    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "model": "openai/gpt-5.4-nano",
+                   "prefixes": ("sk-or-",)},
+    "groq": {"base_url": "https://api.groq.com/openai/v1", "model": "openai/gpt-oss-120b", "prefixes": ("gsk_",)},
+    "xai": {"base_url": "https://api.x.ai/v1", "model": "grok-4", "prefixes": ("xai-",)},
+}
+
+# Forces a provider when the key prefix is ambiguous (e.g. a DeepSeek "sk-" key with LLM_BASE_URL).
+LLM_PROVIDER = (os.getenv("LLM_PROVIDER") or "").lower() or None
+# Model overrides apply to whichever provider is in use; OPENAI_* names are kept for back-compat.
+LLM_MODEL = os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL") or None
 # The groundedness judge can use a different (e.g. stronger) model; defaults to the agent model.
-OPENAI_JUDGE_MODEL = os.getenv("OPENAI_JUDGE_MODEL") or OPENAI_MODEL
-# Optional, only sent when set (not every model accepts it).
+LLM_JUDGE_MODEL = os.getenv("LLM_JUDGE_MODEL") or os.getenv("OPENAI_JUDGE_MODEL") or None
+# Optional, only sent to OpenAI when set (not every model accepts it).
 OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL") or None
+# Custom OpenAI-compatible endpoint; overrides the provider's base URL.
+LLM_BASE_URL = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or None
+
+
+def detect_provider(api_key: str, explicit: str | None = None) -> str:
+    """Explicit choice wins, then the longest matching key prefix, then OpenAI."""
+    choice = (explicit or LLM_PROVIDER or "").lower()
+    if choice in PROVIDERS:
+        return choice
+    matches = [(len(p), name) for name, spec in PROVIDERS.items() for p in spec["prefixes"] if api_key.startswith(p)]
+    return max(matches)[1] if matches else "openai"
+
+
+def default_model(provider: str) -> str:
+    return LLM_MODEL or PROVIDERS[provider]["model"]
+
 
 # Run the LLM groundedness judge on every live reply (adds a call per turn).
 LIVE_JUDGE = os.getenv("LIVE_JUDGE", "false").lower() == "true"
@@ -52,8 +83,12 @@ REFUSALS_OFFER_HUMAN_AFTER = 3
 FRUSTRATION_OFFER_HUMAN_AFTER = 4
 
 
+ENV_KEY_VARS = ("LLM_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY",
+                "GROQ_API_KEY", "XAI_API_KEY")
+
+
 def env_api_key() -> str | None:
-    return os.getenv("OPENAI_API_KEY") or None
+    return next((os.getenv(v) for v in ENV_KEY_VARS if os.getenv(v)), None)
 
 
 def today() -> date:

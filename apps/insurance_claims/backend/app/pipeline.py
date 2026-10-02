@@ -35,15 +35,17 @@ class TurnResult:
 
 
 class Agent:
-    def __init__(self, api_key: str | None = None, repo: Repository | None = None, model: str | None = None):
+    def __init__(self, api_key: str | None = None, repo: Repository | None = None, model: str | None = None,
+                 provider: str | None = None):
         self.repo = repo or get_repo()
         self.controller = SOPController(self.repo)
         self.template = TemplateResponder()
         self.heuristic = HeuristicUnderstander()
-        self.llm = LLMClient(api_key, model) if api_key else None
-        self.judge_llm = (LLMClient(api_key, config.OPENAI_JUDGE_MODEL)
-                          if api_key and config.OPENAI_JUDGE_MODEL != self.llm.model else self.llm)
-        self.mode = f"llm:{self.llm.model}" if self.llm else "offline"
+        self.llm = LLMClient(api_key, model, provider) if api_key else None
+        judge_model = config.LLM_JUDGE_MODEL
+        self.judge_llm = (LLMClient(api_key, judge_model, self.llm.provider)
+                          if self.llm and judge_model and judge_model != self.llm.model else self.llm)
+        self.mode = f"llm:{self.llm.provider}:{self.llm.model}" if self.llm else "offline"
 
     def start(self, state: SessionState) -> str:
         state.transcript.append(Message(role="assistant", content=GREETING, turn=0))

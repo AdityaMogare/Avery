@@ -14,3 +14,5 @@ apps/insurance_claims/backend/outbox/
 .vscode/
 # submission artifact
 *.zip
+# local agent tooling
+.claude/

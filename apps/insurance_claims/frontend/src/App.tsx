@@ -7,6 +7,7 @@ import {
   Fact,
   listScenarios,
   newSession,
+  PROVIDERS,
   Scenario,
   sendMessage,
   Snapshot,
@@ -54,7 +55,8 @@ function store(key: string, value: string) {
 }
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(() => storage("openai_key"));
+  const [apiKey, setApiKey] = useState(() => storage("llm_key") || storage("openai_key"));
+  const [provider, setProvider] = useState(() => storage("llm_provider", "auto"));
   const [consent, setConsent] = useState("default");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [mode, setMode] = useState("");
@@ -84,7 +86,7 @@ export default function App() {
       setActiveResult(null);
     }
     try {
-      const s = await newSession(consentOverride ?? consent, apiKey);
+      const s = await newSession(consentOverride ?? consent, { key: apiKey, provider });
       setSessionId(s.session_id);
       setMode(s.mode);
       setMessages([{ role: "assistant", content: s.reply }]);
@@ -119,7 +121,7 @@ export default function App() {
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
     try {
-      const r = await sendMessage(sid, text, apiKey);
+      const r = await sendMessage(sid, text, { key: apiKey, provider });
       const resp = r.events.find((e) => e.type === "response");
       setMessages((m) => [
         ...m,
@@ -197,16 +199,33 @@ export default function App() {
         </div>
         <div className="controls">
           <label className="field">
-            <span>OpenAI API key</span>
+            <span>LLM API key</span>
             <input
               type="password"
-              placeholder="sk-… (or set OPENAI_API_KEY on the server)"
+              placeholder="OpenAI, Anthropic, Gemini, OpenRouter… (or set on the server)"
               value={apiKey}
               onChange={(e) => {
                 setApiKey(e.target.value);
-                store("openai_key", e.target.value);
+                store("llm_key", e.target.value);
               }}
             />
+          </label>
+          <label className="field small">
+            <span>Provider</span>
+            <select
+              value={provider}
+              title="Auto detects the provider from the key prefix"
+              onChange={(e) => {
+                setProvider(e.target.value);
+                store("llm_provider", e.target.value);
+              }}
+            >
+              {PROVIDERS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="field small">
             <span>Consent scenario</span>

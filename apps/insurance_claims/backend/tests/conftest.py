@@ -7,11 +7,12 @@ os.environ.setdefault("AGENT_TODAY", "2026-10-01")
 import pytest  # noqa: E402
 
 from app.fixtures import get_repo  # noqa: E402
+from app.config import env_api_key  # noqa: E402
 from app.pipeline import Agent  # noqa: E402
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "llm: needs OPENAI_API_KEY; calls the live model")
+    config.addinivalue_line("markers", "llm: needs an LLM API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...); calls the live model")
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ def offline_agent():
 
 @pytest.fixture
 def live_agent():
-    key = os.getenv("OPENAI_API_KEY")
+    key = env_api_key()
     if not key:
-        pytest.skip("OPENAI_API_KEY not set")
+        pytest.skip("no LLM API key set")
     return Agent(api_key=key)
