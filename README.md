@@ -27,8 +27,9 @@ The token can also be pasted into the **OpenAI API key** field in the UI. It is 
 **offline mode** (deterministic regex understanding + template replies), which is useful for trying the
 SOP gates without a model.
 
-Optional env vars (see `.env.example`): `OPENAI_MODEL` (default `gpt-5.4-nano`), `OPENAI_JUDGE_MODEL`
-(defaults to the agent model; set a stronger one for stricter judging), `OPENAI_REASONING_EFFORT`,
+The agent, the groundedness judge and the simulated callers all run on **`gpt-5.4-nano`**, and every number
+in this README and in `evals/` was measured on nano. Optional env vars (see `.env.example`): `OPENAI_MODEL`
+(default `gpt-5.4-nano`), `OPENAI_JUDGE_MODEL` (defaults to the agent model), `OPENAI_REASONING_EFFORT`,
 `OPENAI_BASE_URL`, `AGENT_TODAY` (business date for derived facts such as "appeal deadline passed"),
 `LIVE_JUDGE=true` (runs the groundedness judge on every live reply).
 
