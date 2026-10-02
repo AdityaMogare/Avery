@@ -54,6 +54,9 @@ class Decision:
             self.actions.append(action)
 
 
+# Money questions: answered with each amount under its schema meaning (ANSWER_AMOUNTS).
+AMOUNT_QUESTION = re.compile(r"\b(how much|amount|paid|pay|payout|payment|reimburs\w*|maximum|max|allowed|money|"
+                             r"cover(ed|age)?|owe|check)\b|\$", re.I)
 # "my other claim", "a different one": the caller means a claim other than the one being discussed.
 OTHER_CASE = re.compile(r"\b(other|another|different|second)\b(\s+\w+){0,2}\s+(claim|one)\b", re.I)
 
@@ -450,6 +453,8 @@ class SOPController:
         except ToolGateError:
             d.add("CASE_UNAVAILABLE")
             return d
+        if und.intent == "payment_question" or AMOUNT_QUESTION.search(message):
+            d.add("ANSWER_AMOUNTS")
         topics = [s.value for s in state.memory.followup_topics if s.turn == state.turn]
         lacks = bool(state.memory.lacks_document) and (
             state.memory.lacks_document.turn == state.turn or bool(und.lacks_document))

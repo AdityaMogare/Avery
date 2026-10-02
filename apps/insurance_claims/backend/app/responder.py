@@ -199,7 +199,13 @@ class TemplateResponder:
                         "connect you if you'd like.", "sop.passed_deadline_review", "sop.human_transfer")
                 else:
                     say(f"The appeal deadline on record is {v(p + '.appeal_deadline')}.", f"{p}.appeal_deadline")
-            if v(p + ".status") in ("closed", "open") and f"{p}.net_pay" in f:
+            if "ANSWER_AMOUNTS" in decision.actions and f"{p}.allowed_max_amount" in f:
+                say(f"On record for claim {cid}: the amount paid so far (net pay) is ${v(p + '.net_pay')}, the expected "
+                    f"reimbursement is ${v(p + '.expected_reimbursement_amount')}, and the maximum allowed amount, "
+                    f"which is the most the insurer pays for a covered service rather than a payment, is "
+                    f"${v(p + '.allowed_max_amount')}.", f"{p}.net_pay", f"{p}.expected_reimbursement_amount",
+                    f"{p}.allowed_max_amount", "schema.allowed_max_amount")
+            elif v(p + ".status") in ("closed", "open") and f"{p}.net_pay" in f:
                 say(f"The expected reimbursement is ${v(p + '.expected_reimbursement_amount')} and the amount paid so far is "
                     f"${v(p + '.net_pay')}.", f"{p}.expected_reimbursement_amount", f"{p}.net_pay")
         for fid in alternatives:
