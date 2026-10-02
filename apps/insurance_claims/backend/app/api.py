@@ -32,8 +32,11 @@ class ChatIn(BaseModel):
     message: str
 
 
-def _agent(header_key: str | None) -> Agent:
-    return Agent(api_key=(header_key or "").strip() or config.env_api_key())
+def _agent(header_key: str | None, header_provider: str | None = None) -> Agent:
+    key = (header_key or "").strip()
+    # A provider picked in the UI only applies to the key pasted alongside it.
+    provider = ((header_provider or "").strip().lower() or None) if key else None
+    return Agent(api_key=key or config.env_api_key(), provider=provider)
 
 
 def snapshot(state: SessionState) -> dict[str, Any]:
@@ -68,10 +71,12 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/api/session")
-def new_session(body: NewSession, x_openai_key: str | None = Header(default=None)) -> dict[str, Any]:
+def new_session(body: NewSession, x_llm_key: str | None = Header(default=None),
+                x_llm_provider: str | None = Header(default=None),
+                x_openai_key: str | None = Header(default=None)) -> dict[str, Any]:
     state = SessionState()
     state.consent.scenario = body.consent_scenario
-    agent = _agent(x_openai_key)
+    agent = _agent(x_llm_key or x_openai_key, x_llm_provider)
     greeting = agent.start(state)
     SESSIONS[state.id] = state
     TURN_RESULTS[state.id] = []
@@ -80,13 +85,14 @@ def new_session(body: NewSession, x_openai_key: str | None = Header(default=None
 
 
 @app.post("/api/chat")
-def chat(body: ChatIn, x_openai_key: str | None = Header(default=None)) -> dict[str, Any]:
+def chat(body: ChatIn, x_llm_key: str | None = Header(default=None), x_llm_provider: str | None = Header(default=None),
+         x_openai_key: str | None = Header(default=None)) -> dict[str, Any]:
     state = SESSIONS.get(body.session_id)
     if not state:
         raise HTTPException(404, "unknown session")
     if not body.message.strip():
         raise HTTPException(400, "empty message")
-    result = _agent(x_openai_key).handle(state, body.message.strip()[:2000])
+    result = _agent(x_llm_key or x_openai_key, x_llm_provider).handle(state, body.message.strip()[:2000])
     TURN_RESULTS.setdefault(state.id, []).append(result)
     return {**result.__dict__, "state": snapshot(state)}
 
