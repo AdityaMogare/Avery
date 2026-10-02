@@ -126,6 +126,12 @@ _LAST4 = re.compile(r"(?:ssn|social|national id|id)[^\d]{0,30}(\d{4})\b", re.I)
 _POLICY = re.compile(r"\bPOL[-\s]?(\d{3,})\b", re.I)
 _CASE = re.compile(r"\bCL[-\s]?(\d{3,})\b", re.I)
 _NAME = re.compile(r"\b(?i:my name is|this is|name's|i am|i'm)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})")
+# Other ways callers introduce themselves (found on fixtures_alt): "I'm the policyholder, Jonathan Reyes",
+# "Priya Natarajan here".
+_NAME_ALT = (
+    re.compile(r"\b(?i:policyholder|caller)[,:]?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})"),
+    re.compile(r"(?:^|[.!?]\s+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s+here\b"),
+)
 _REP = re.compile(r"\b(?:my|for my|on behalf of my)\s+(mother|mom|father|dad|son|daughter|wife|husband|spouse)\b", re.I)
 
 # "Why didn't that work?", "what do you mean?": about this call, so never off-topic.
@@ -182,7 +188,7 @@ class HeuristicUnderstander:
             u.policy_number = f"POL-{m.group(1)}"
         if (m := _CASE.search(text)):
             u.case_id = f"CL-{m.group(1)}"
-        if (m := _NAME.search(text)):
+        if (m := _NAME.search(text) or next((m for p in _NAME_ALT if (m := p.search(text))), None)):
             u.full_name = m.group(1)
         if (m := _REP.search(text)):
             u.caller_role = "representative"

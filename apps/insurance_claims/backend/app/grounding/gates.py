@@ -153,7 +153,8 @@ def check_amount_meaning(reply: str, facts: FactSheet) -> list[str]:
     return out
 
 
-def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list[str] | None = None) -> list[str]:
+def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list[str] | None = None,
+                repo=None) -> list[str]:
     actions = actions or []
     reply = normalize_quotes(reply)  # live: nano wrote "won’t" (U+2019) and slipped past every ASCII pattern
     text = reply.casefold()
@@ -186,8 +187,10 @@ def check_gates(reply: str, facts: FactSheet, state: SessionState, actions: list
 
     role = state.memory.caller_role.value if state.memory.caller_role else None
     if role == "representative" and state.verification.party_id:
-        from ..fixtures import get_repo  # local import keeps gates free of repo state otherwise
-        holder = get_repo().policyholder(state.verification.party_id)
+        if repo is None:  # unit tests; the pipeline always passes the agent's own repository
+            from ..fixtures import get_repo
+            repo = get_repo()
+        holder = repo.policyholder(state.verification.party_id)
         first = holder["name"].split()[0].casefold() if holder else None
         rep = (state.memory.representative_name.value if state.memory.representative_name else "") or ""
         if first and first not in rep.casefold() and re.search(
