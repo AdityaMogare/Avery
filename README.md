@@ -10,6 +10,47 @@ The core design principle, taken from how Rasa, Parlant and Sierra solved the sa
 gates and the data.** Every factual statement the agent makes must cite a fact from a tool result, and a
 verifier checks this before each reply is sent.
 
+## Evaluate in 10 minutes
+
+Start the app (Docker below), paste a key or set `OPENAI_API_KEY`, then use the sample chips under the chat
+box or the **Test cases** drawer, which runs any spec and turns it green or red against its expectations.
+
+| Context.md requirement | Try this in the UI | Spec that proves it |
+|---|---|---|
+| Demo case: identity + hint in one message, no disclosure before verification | **Demo test case** chip | `margaret_demo_single_utterance` |
+| Remember a later-phase hint during VERIFY_ID | **Hint first**, then the identity line | `memory_across_phase_boundary` |
+| ≥3 PII, partial answers, alternate fields, refusals | **Wrong DOB**, then **Correction**; **Spoken digits** | `edge_field_correction_after_failure`, `edge_spoken_ssn_dob`, `wrong_details_lockout` |
+| Flexible intent + grounded follow-ups | **Follow-up**, **Switch claim**, **Amount** | `grounded_followups`, `edge_switch_*`, `edge_amount_*` |
+| Email summary, send or skip | say "that's all" | `email_skip`, `edge_email_statements_grounded`, `edge_transfer_then_email_summary` |
+| Out-of-scope refusal, then human after retries | **Off-topic** ×3 | `off_topic_escalation` |
+| Bonus: emotion + SOP recovery | **Frustrated** | `frustrated_caller_bonus`, `edge_pushback_and_verify_same_turn` |
+| All of it in one messy call | Test cases drawer → `long_messy_12_turns` | `long_messy_12_turns` |
+
+Each reply shows a **grounded** badge, its citations, and its latency, token count and estimated cost. The
+right-hand panel shows the phase, identity gate, remembered slots, facts and the full event trace.
+
+## Results at a glance (gpt-5.4-nano)
+
+⟨RESULTS⟩
+
+## Design trade-offs
+
+- **Code owns the workflow; the model only extracts and phrases.** I chose a deterministic controller with
+  gates over one large agent prompt, because nano follows a long prompt unreliably and the SOP needs
+  guarantees ("no claim data before verification") that a prompt cannot give. The cost is more code, and
+  less flexibility: a new claim type or SOP step is a code change.
+- **A verified template beats an unverified model reply.** A draft that fails the verifier is regenerated
+  once, then replaced by a deterministic template. That template is stiffer, but the caller never sees an
+  ungrounded sentence. Fallback rates are reported so this doesn't hide model regressions.
+- **Regex gates at runtime, LLM judge at eval time.** Gates G1–G9 are fast, free and reproducible, but
+  brittle to paraphrase. The judge catches paraphrase but costs a call per reply and misses subtle
+  inferences (see calibration), so it measures the system rather than guarding it.
+- **nano plus scaffolding over a bigger model.** Each nano failure seen live became a deterministic layer
+  (backfill, input guard, gates) rather than a longer prompt. That keeps a conversation under half a cent.
+- **Correction after a failed match keeps that attempt's fields.** That's better for the caller ("sorry, my
+  DOB is …" verifies without repeating name and SSN). The security cost is bounded: the failed field is
+  never named, attempts are still counted per distinct combination, and lockout stays at 3.
+
 ---
 
 ## Quick start
