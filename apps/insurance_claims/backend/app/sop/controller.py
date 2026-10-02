@@ -176,7 +176,8 @@ class SOPController:
             state.log("memory_update", phase=state.phase.value, changed=changed)
 
     def _emotion(self, state: SessionState, und: TurnUnderstanding, d: Decision) -> None:
-        if und.emotion in NEGATIVE_EMOTIONS or und.refuses_verification:
+        closing = und.is_done or bool(und.email_choice)
+        if (und.emotion in NEGATIVE_EMOTIONS and not closing) or und.refuses_verification:
             state.counters.frustration_streak += 1
             d.add("EMPATHY")
             d.facts.add("caller.emotion", und.emotion if und.emotion != "neutral" else "frustrated", "caller")
@@ -388,8 +389,10 @@ class SOPController:
 
     def _select_case(self, state: SessionState, und: TurnUnderstanding, d: Decision, tools: ToolBox,
                      case_id: str, message: str) -> Decision:
+        # The case hints say which claim; the intent only counts when there are none (a stale turn-1 intent
+        # made a later "what about my auto claim?" read as "based on what you mentioned earlier").
         hint_turns = sorted({s.turn for s in state.memory.case_hints.values()}
-                            | ({state.memory.intent.turn} if state.memory.intent else set()))
+                            or ({state.memory.intent.turn} if state.memory.intent else set()))
         state.selected_case_id = case_id
         state.candidate_case_ids = []
         d.used_memory_turns = [t for t in hint_turns if t < state.turn]

@@ -1136,6 +1136,100 @@
           ]
         }
       }
+    },
+    {
+      "id": "long_messy_12_turns",
+      "category": "edge_case",
+      "gate": "all phases: memory, scope, verification correction, case switch, G9, email",
+      "source": "grading doc: long messy conversation (10+ turns, topic jumps)",
+      "description": "A 12-turn call with a hint during verification, an off-topic aside, a partial ID, a wrong DOB then a correction, a follow-up, a claim switch and back, an amount question, frustration, and an emailed summary.",
+      "turns": [
+        "Hi, I'm calling about my denied healthcare claim from January. Honestly I'm pretty frustrated.",
+        "Before that, can you tell me what reinforcement learning is?",
+        "Fine. My name is Margaret Chen.",
+        "DOB 1985-03-16, SSN last four 4472.",
+        "Sorry, I meant my DOB is 1985-03-15.",
+        "What format should the scan be in?",
+        "What about my auto claim?",
+        "How much will I get for it?",
+        "OK, back to the denied one. What documents do I need?",
+        "This is ridiculous, I've been waiting for months.",
+        "That's all.",
+        "Yes, send it."
+      ],
+      "expect": {
+        "verified_turn": 5,
+        "failed_attempts": 1,
+        "memory_used": true,
+        "selected_case": "CL-2048",
+        "email": "sent",
+        "final_phase": "ENDED",
+        "phase_by_turn": {
+          "1": "VERIFY_ID",
+          "2": "VERIFY_ID",
+          "4": "VERIFY_ID",
+          "5": "PROCESS_CASE",
+          "7": "PROCESS_CASE",
+          "9": "PROCESS_CASE",
+          "11": "POST_PROCESS",
+          "12": "ENDED"
+        },
+        "actions_by_turn": {
+          "2": [
+            "OFF_TOPIC_REFUSAL"
+          ],
+          "4": [
+            "VERIFICATION_FAILED"
+          ],
+          "8": [
+            "ANSWER_AMOUNTS"
+          ],
+          "10": [
+            "EMPATHY"
+          ]
+        },
+        "actions_absent_by_turn": {
+          "11": [
+            "EMPATHY"
+          ],
+          "12": [
+            "EMPATHY"
+          ]
+        },
+        "facts_by_turn": {
+          "6": [
+            "guide.topic.file_format_requirements"
+          ]
+        },
+        "reply_excludes_by_turn": {
+          "2": [
+            "reinforcement learning is",
+            "an area of machine learning"
+          ],
+          "4": [
+            "1985-03-16"
+          ],
+          "7": [
+            "mentioned earlier",
+            "told me earlier",
+            "from january",
+            "denied auto"
+          ],
+          "9": [
+            "3,200",
+            "3200"
+          ]
+        },
+        "reply_matches_by_turn": {
+          "9": "pathology"
+        },
+        "no_gate_violations_by_turn": {
+          "8": [
+            "G2",
+            "G9"
+          ]
+        }
+      }
     }
   ]
 }
