@@ -135,7 +135,7 @@ def test_backfill_recovers_values_the_model_dropped(offline_agent):
 
     agent = Agent(api_key=None)
     agent.llm, agent.mode = DroppingLLM(), "llm:fake"
-    agent._respond_verified = lambda state, decision, message, errors: (  # skip responder for this test
+    agent._respond_verified = lambda state, decision, message, errors, *_: (  # skip responder for this test
         agent.template.respond(state, decision, message),
         type("C", (), {"ok": True, "violations": [], "as_dict": lambda self: {"ok": True}})(), "template")
     s = SessionState()

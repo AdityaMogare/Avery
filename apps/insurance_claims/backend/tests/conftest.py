@@ -12,7 +12,7 @@ from app.pipeline import Agent  # noqa: E402
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "llm: needs an LLM API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, ...); calls the live model")
+    config.addinivalue_line("markers", "llm: needs an LLM API key (OPENAI_API_KEY, GEMINI_API_KEY or OPENROUTER_API_KEY); calls the live model")
 
 
 @pytest.fixture

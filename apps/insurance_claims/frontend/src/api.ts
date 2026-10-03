@@ -75,16 +75,18 @@ export type ChatResponse = {
   state: Snapshot;
 };
 
-/** Any provider's key; the backend detects the provider from the key prefix unless one is chosen. */
-export type LlmCreds = { key: string; provider: string };
+/** An OpenAI, Gemini or OpenRouter key; the backend detects the provider from the key prefix unless one is
+ * chosen. An empty model means the provider's default chain. */
+export type LlmCreds = { key: string; provider: string; model: string };
 
-export const PROVIDERS = ["auto", "openai", "anthropic", "gemini", "openrouter", "groq", "xai"];
+export const PROVIDERS = ["auto", "openai", "gemini", "openrouter"];
 
 function headers(llm?: LlmCreds): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };
   if (llm?.key.trim()) {
     h["X-LLM-Key"] = llm.key.trim();
     if (llm.provider !== "auto") h["X-LLM-Provider"] = llm.provider;
+    if (llm.model.trim()) h["X-LLM-Model"] = llm.model.trim();
   }
   return h;
 }
@@ -96,7 +98,7 @@ async function post<T>(url: string, body: unknown, llm?: LlmCreds): Promise<T> {
 }
 
 export const newSession = (consentScenario: string, llm: LlmCreds) =>
-  post<{ session_id: string; reply: string; mode: string; state: Snapshot; events: TraceEvent[] }>(
+  post<{ session_id: string; reply: string; mode: string; notice: string | null; state: Snapshot; events: TraceEvent[] }>(
     "/api/session",
     { consent_scenario: consentScenario },
     llm,
@@ -122,6 +124,13 @@ export type EvalResult = {
   failures: string[];
   trace_properties: Record<string, boolean>;
 };
+
+/** Each provider's model fallback chain, first entry tried first. */
+export async function providerModels(): Promise<Record<string, string[]>> {
+  const res = await fetch("/api/health");
+  if (!res.ok) return {};
+  return (await res.json()).providers ?? {};
+}
 
 export async function listScenarios(): Promise<Scenario[]> {
   const res = await fetch("/api/scenarios");

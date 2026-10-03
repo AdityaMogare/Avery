@@ -10,8 +10,8 @@ The core design principle, taken from how Rasa, Parlant and Sierra solved the sa
 gates and the data.** Every factual statement the agent makes must cite a fact from a tool result, and a
 verifier checks this before each reply is sent.
 
-**Live demo: https://157-230-226-162.sslip.io**. Paste an API key from any supported provider (OpenAI,
-Anthropic, Gemini, OpenRouter, Groq or xAI) into the key field and start chatting. The server holds no key of
+**Live demo: https://157-230-226-162.sslip.io**. Paste an OpenAI, Gemini or OpenRouter API key into the
+key field and start chatting. The server holds no key of
 its own: your key is kept in this browser tab's sessionStorage and sent with each request, and the server
 passes it on to your provider without storing it.
 With no key the demo runs in deterministic offline mode.
@@ -83,31 +83,46 @@ docker run --rm -p 8000:8000 -e OPENAI_API_KEY=sk-... sop-agent   # or: --env-fi
 # open http://localhost:8000
 ```
 
-Any of these keys works, either as an env var or pasted into the **LLM API key** field in the UI. The provider
-is detected from the key prefix:
+Three providers are supported, all tested live. Use a key either as an env var or pasted into the
+**LLM API key** field in the UI. The provider is detected from the key prefix:
 
-| Provider | Key prefix | Env var | Default model |
-|---|---|---|---|
-| OpenAI | `sk-`, `sk-proj-` | `OPENAI_API_KEY` | `gpt-5.4-nano` |
-| Anthropic | `sk-ant-` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
-| Google Gemini | `AIza` | `GEMINI_API_KEY` | `gemini-2.5-flash` |
-| OpenRouter | `sk-or-` | `OPENROUTER_API_KEY` | `openai/gpt-5.4-nano` |
-| Groq | `gsk_` | `GROQ_API_KEY` | `openai/gpt-oss-120b` |
-| xAI | `xai-` | `XAI_API_KEY` | `grok-4` |
+| Provider | Key prefix | Env var | Models tried in order | Pin a model |
+|---|---|---|---|---|
+| OpenAI | `sk-`, `sk-proj-` | `OPENAI_API_KEY` | `gpt-5.4-nano` → `gpt-5.4-mini` | `OPENAI_MODEL` |
+| Google Gemini | `AIza` | `GEMINI_API_KEY` | `gemini-3.8-flash` → `gemini-3.5-flash-lite` | `GEMINI_MODEL` |
+| OpenRouter | `sk-or-` | `OPENROUTER_API_KEY` | `openai/gpt-5.4-nano` → `google/gemini-3.8-flash` | `OPENROUTER_MODEL` |
+
+OpenRouter is the route to other model families (Claude, Llama, Grok and others): use an OpenRouter key and
+type the model id, e.g. `anthropic/claude-sonnet-5-5`, into the optional **Model** field. Anthropic, Groq and
+xAI keys are recognised and get a message pointing to OpenRouter, and the session continues in offline mode.
+
+**Model fallback.** Providers retire model ids (Gemini's `gemini-2.5-flash` started returning 404 to new keys).
+When a model is reported unavailable, the client moves to the next model in the chain, remembers the working
+model for that key, and logs a `model_fallback` event in the trace. A model typed in the UI, or pinned with a
+`*_MODEL` env var, is tried first, then the provider's defaults.
+
+**Free-tier quotas.** A free Gemini key allows about 20 requests per model per day, and a turn makes about two
+model calls, so that's roughly 10 turns per model. A daily-quota 429 is not retried (backoff can't help
+until the next day). The client moves to the next model, which has its own quota. When every model is out,
+one short message says so and the turn answers from the verified templates. Per-minute rate limits are
+still retried with backoff.
 
 If the prefix is ambiguous, pick the provider in the UI's **Provider** dropdown or set `LLM_PROVIDER`. Any
 other OpenAI-compatible endpoint works through `LLM_BASE_URL` + `LLM_API_KEY`. The UI sends the key per
 request in the `X-LLM-Key` header (the older `X-OpenAI-Key` header still works) and keeps it only in the
-browser's sessionStorage. The mode badge shows `llm:<provider>:<model>`. If the provider rejects the key, the
-error appears in the UI and that turn falls back to offline. With no key at all, the app runs in
+browser's sessionStorage. The mode badge shows `llm:<provider>:<model>`. If the provider rejects the key, or
+none of its models is available, one short error appears in the UI. The turn then skips further model calls
+and answers from the verified templates. With no key at all, the app runs in
 **offline mode** (deterministic regex understanding + template replies), which is useful for trying the SOP
 gates without a model.
 
-Optional env vars (see `.env.example`): `LLM_MODEL` (overrides the provider's default model), `LLM_JUDGE_MODEL`
-(defaults to the agent model; set a stronger one for stricter judging), `LLM_PROVIDER`, `LLM_BASE_URL`,
+Optional env vars (see `.env.example`): `OPENAI_MODEL` / `GEMINI_MODEL` / `OPENROUTER_MODEL`
+(pin a model for that provider), `LLM_MODEL` and `LLM_JUDGE_MODEL` (apply only to the server's own provider,
+i.e. `LLM_PROVIDER` or the env key's provider, so a key pasted for another provider never gets a foreign model
+name; the judge defaults to the agent model), `LLM_PROVIDER`, `LLM_BASE_URL`,
 `OPENAI_REASONING_EFFORT` (OpenAI only), `AGENT_TODAY` (business date for derived facts such as "appeal deadline
-passed"), `LIVE_JUDGE=true` (runs the groundedness judge on every live reply). The old `OPENAI_MODEL`,
-`OPENAI_JUDGE_MODEL` and `OPENAI_BASE_URL` names still work.
+passed"), `LIVE_JUDGE=true` (runs the groundedness judge on every live reply). The old `OPENAI_JUDGE_MODEL`
+and `OPENAI_BASE_URL` names still work.
 
 ### Local development
 

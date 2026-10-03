@@ -8,6 +8,7 @@ import {
   listScenarios,
   newSession,
   PROVIDERS,
+  providerModels,
   Scenario,
   sendMessage,
   Snapshot,
@@ -65,6 +66,8 @@ function store(key: string, value: string) {
 export default function App() {
   const [apiKey, setApiKey] = useState(() => storage("llm_key") || storage("openai_key"));
   const [provider, setProvider] = useState(() => storage("llm_provider", "auto"));
+  const [model, setModel] = useState(() => storage("llm_model"));
+  const [modelChains, setModelChains] = useState<Record<string, string[]>>({});
   const [consent, setConsent] = useState("default");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [mode, setMode] = useState("");
@@ -94,9 +97,10 @@ export default function App() {
       setActiveResult(null);
     }
     try {
-      const s = await newSession(consentOverride ?? consent, { key: apiKey, provider });
+      const s = await newSession(consentOverride ?? consent, { key: apiKey, provider, model });
       setSessionId(s.session_id);
       setMode(s.mode);
+      if (s.notice) setError(s.notice);
       setMessages([{ role: "assistant", content: s.reply }]);
       setState(s.state);
       setAllEvents(s.events);
@@ -110,6 +114,9 @@ export default function App() {
 
   useEffect(() => {
     start();
+    providerModels()
+      .then(setModelChains)
+      .catch(() => {});
     listScenarios()
       .then(setScenarios)
       .catch((e) => setError(String(e)));
@@ -129,7 +136,7 @@ export default function App() {
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
     try {
-      const r = await sendMessage(sid, text, { key: apiKey, provider });
+      const r = await sendMessage(sid, text, { key: apiKey, provider, model });
       const resp = r.events.find((e) => e.type === "response");
       setMessages((m) => [
         ...m,
@@ -211,7 +218,7 @@ export default function App() {
             <span>LLM API key</span>
             <input
               type="password"
-              placeholder="OpenAI, Anthropic, Gemini, OpenRouter… (or set on the server)"
+              placeholder="OpenAI, Gemini or OpenRouter key (or set on the server)"
               value={apiKey}
               onChange={(e) => {
                 setApiKey(e.target.value);
@@ -235,6 +242,19 @@ export default function App() {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="field small">
+            <span>Model (optional)</span>
+            <input
+              type="text"
+              placeholder={modelChains[provider]?.[0] ?? "provider default"}
+              title="Leave empty for the provider's default; an unavailable model falls back to the default chain"
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                store("llm_model", e.target.value);
+              }}
+            />
           </label>
           <label className="field small">
             <span>Consent scenario</span>
