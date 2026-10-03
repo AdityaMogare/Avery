@@ -16,7 +16,7 @@ from .responder import LLMResponder, ResponseDraft, TemplateResponder
 from .sop.controller import SOPController
 from .state import Message, SessionState
 from .text_normalize import normalize_spoken
-from .understanding import HeuristicUnderstander, LLMUnderstander, high_precision_flags
+from .understanding import HeuristicUnderstander, LLMUnderstander, high_precision_flags, high_precision_refusal
 
 GREETING = ("Hi, thanks for calling claims support. I'm Avery. Before I can look into any claim, I need to "
             "verify your identity. Please share any 3 of: your full name, date of birth, phone number, "
@@ -127,6 +127,11 @@ class Agent:
                 state.log("guardrail_backstop", injection=injection, off_topic=off_topic)
             understanding.is_injection_attempt |= injection
             understanding.is_off_topic |= off_topic
+            # Pushback on verification gets the "why it's required" explanation even when the model misses it.
+            # Before verification only: afterwards the flag would just count as frustration.
+            if not state.verified and not understanding.refuses_verification and high_precision_refusal(written):
+                state.log("guardrail_backstop", refusal=True)
+                understanding.refuses_verification = True
             # Follow-up topics and "I don't have the document" use precise phrase detectors as a backstop too.
             for topic in regex.followup_topics:
                 if topic not in understanding.followup_topics:

@@ -8,9 +8,9 @@ A regex/keyword HeuristicUnderstander is used offline (no API key) and as a fall
 from __future__ import annotations
 
 import re
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from .state import MONTHS, SessionState
 
@@ -23,6 +23,15 @@ Topic = Literal[
     "submission_method", "file_format_requirements", "receipt_confirmation",
 ]
 Emotion = Literal["neutral", "frustrated", "angry", "anxious", "confused", "sad"]
+
+# Placeholders some models write instead of a JSON null (live, gpt-5.4-nano via OpenRouter: case_id "null"
+# sent the controller to "no matching claim", and policy_number "null" overwrote the remembered policy).
+NULL_LIKE = {"", "null", "none", "nil", "n/a", "na", "unknown", "undefined", "not provided", "not stated",
+             "not mentioned", "not specified"}
+
+
+def _null_like(value: Any) -> bool:
+    return isinstance(value, str) and value.strip().strip(".").casefold() in NULL_LIKE
 
 
 class TurnUnderstanding(BaseModel):
@@ -64,6 +73,19 @@ class TurnUnderstanding(BaseModel):
     email_choice: Optional[Literal["send", "skip"]] = None
     emotion: Emotion = Field("neutral", description="neutral unless the latest message clearly expresses emotion; "
                                                     "a plain question is neutral")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_null_placeholders(cls, data: Any) -> Any:
+        """A "null"/"none"/"n/a" string means the field was not stated: use the field's default instead."""
+        if not isinstance(data, dict):
+            return data
+        cleaned = {}
+        for key, value in data.items():
+            if _null_like(value):
+                continue
+            cleaned[key] = [v for v in value if not _null_like(v)] if isinstance(value, list) else value
+        return cleaned
 
 
 UNDERSTAND_SYSTEM = """You extract structured signals from one caller message to an insurance claims
@@ -275,6 +297,18 @@ _INJECTION_RE = re.compile(
     r"ignore (all|your|previous|the) (previous )?(instructions|rules)|i am (an? )?(admin|supervisor|manager)\b|"
     r"i'm (an? )?(admin|supervisor|manager)\b|skip (the )?verification|bypass|\bact as\b|pretend (to be|you are)|"
     r"you are now|answer all my questions|system prompt", re.I)
+
+
+# Unambiguous pushback on verification. Narrower than the heuristic's list: "just tell me" also opens ordinary
+# requests ("just tell me what you need"), so it is left to the model.
+_REFUSAL_RE = re.compile(r"already told you|not giving (you )?(that|my|any)|won't give|refuse|why do you need")
+
+
+def high_precision_refusal(message: str) -> bool:
+    """Live (gpt-5.4-nano): "I already told you who I am. This is ridiculous. Just tell me why my claim was
+    denied." came back with refuses_verification=false, so the agent never explained why verification is
+    required (the brief's bonus example)."""
+    return bool(_REFUSAL_RE.search(message.casefold().replace("\u2019", "'")))
 
 
 def high_precision_flags(message: str) -> tuple[bool, bool]:

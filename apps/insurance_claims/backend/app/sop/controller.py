@@ -388,6 +388,12 @@ class SOPController:
         top = [c for s, c in scored if s == best and s > float("-inf")]
         if best > 0 and len(top) == 1:
             return self._select_case(state, und, d, tools, top[0]["case_id"], message)
+        if not hints and len(top) == len(claims):
+            # An intent that narrows nothing (live, via OpenRouter: "She says she approved it." came back with
+            # an intent) is no description: ask which claim, rather than "a few could match" over all of them.
+            state.candidate_case_ids = [c["case_id"] for c in claims]
+            d.add("ASK_INTENT")
+            return d
         if top and best > float("-inf"):
             state.candidate_case_ids = [c["case_id"] for c in top]
             d.facts.add("resolve.candidates", state.candidate_case_ids, "session")
@@ -435,8 +441,12 @@ class SOPController:
             matches = [c for c in claims if self._score(c, turn_hints, None) > float("-inf")
                        and not (other and c["case_id"] == state.selected_case_id)]
             if matches and not any(c["case_id"] == state.selected_case_id for c in matches):
-                # The new reference replaces the old description of which claim this call is about.
+                # The new reference replaces the old description of which claim this call is about, in memory and
+                # in this turn's facts (live: the responder read the stale "closed healthcare claim from January"
+                # and offered CL-2048 for "my closed claim").
                 state.memory.case_hints = turn_hints
+                d.facts.facts.pop("caller.case_hint", None)
+                d.facts.add("caller.case_hint", state.memory.hint_text(), "caller")
                 state.log("case_reference_changed", hints=sorted(said), other=other,
                           candidates=[c["case_id"] for c in matches])
                 if len(matches) == 1:

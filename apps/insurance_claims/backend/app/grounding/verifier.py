@@ -163,4 +163,13 @@ def verify_reply(reply: str, claims: list[dict[str, Any]], facts: FactSheet, sta
     # 11. Behavioural boundary gates (commitments, outcome predictions, capabilities, state, addressing, scope).
     violations.extend(check_gates(reply, facts, state, actions, repo))
 
+    # 12. A "which claim?" question must offer every candidate the controller found (live: the model followed a
+    #     stale hint and offered CL-2011 and CL-2048 for "my closed claim", leaving out CL-1899). Other ids may
+    #     still be mentioned, e.g. the claim being switched away from.
+    if actions and "DISAMBIGUATE" in actions and "resolve.candidates" in facts:
+        candidates = {c.strip().upper() for c in facts.get("resolve.candidates").value.split(",")}
+        missing = sorted(candidates - set(tokens.get("case_ids", [])))
+        if missing:
+            violations.append(f"disambiguation leaves out candidate claim(s) {', '.join(missing)}")
+
     return VerifierResult(ok=not violations, violations=sorted(set(violations)), checked_tokens=tokens)

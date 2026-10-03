@@ -28,6 +28,10 @@ class LLMError(RuntimeError):
 # Model that worked for each (provider, key, requested chain). A new client is built per request, so without
 # this every turn would hit a retired model's 404 again before falling back.
 _RESOLVED_MODEL: dict[tuple[str, str, tuple[str, ...]], str] = {}
+# Reasoning effort each (provider, model) accepted. Supported levels differ by model (gemini-3.8-flash rejects
+# "minimal"), so a rejected level steps down this ladder, toward more thinking, until one is accepted.
+_EFFORT_LADDER = ("minimal", "low", "medium")
+_RESOLVED_EFFORT: dict[tuple[str, str], str | None] = {}
 
 
 # Each model call appends a usage record to the active sink (one per turn). A ContextVar rather than a
@@ -78,6 +82,7 @@ class LLMClient:
         # The SDK retries 429s and 5xx with exponential backoff and honours retry-after, except daily quotas.
         self.client = _client_class()(api_key=api_key, base_url=base_url, max_retries=config.LLM_MAX_RETRIES)
         self._json_object_only = False  # set once an endpoint rejects json_schema response_format
+        self.reasoning_effort = None if config.LLM_BASE_URL else config.REASONING_EFFORT.get(self.provider)
 
     def _record(self, name: str, started: float, *, prompt: int, cached: int, completion: int, reasoning: int = 0) -> None:
         sink = USAGE_SINK.get()
@@ -128,9 +133,20 @@ class LLMClient:
             raise LLMError(f"invalid structured output: {exc}") from exc
 
     def _openai_compatible(self, system: str, messages: list[dict[str, str]], strict: dict[str, Any], name: str) -> str:
-        kwargs: dict[str, Any] = {}
-        if self.provider == "openai" and config.OPENAI_REASONING_EFFORT:
-            kwargs["reasoning_effort"] = config.OPENAI_REASONING_EFFORT
+        while True:
+            effort = _RESOLVED_EFFORT.get((self.provider, self.model), self.reasoning_effort)
+            kwargs: dict[str, Any] = {"reasoning_effort": effort} if effort else {}
+            try:
+                return self._structured_chat(system, messages, strict, name, kwargs)
+            except Exception as exc:
+                if not (effort and (_param_rejected(exc, "reasoning") or _param_rejected(exc, "thinking"))):
+                    raise
+                # Try the next level; past the ladder, send none and let the model use its default.
+                rest = _EFFORT_LADDER[_EFFORT_LADDER.index(effort) + 1:] if effort in _EFFORT_LADDER else ()
+                _RESOLVED_EFFORT[(self.provider, self.model)] = rest[0] if rest else None
+
+    def _structured_chat(self, system: str, messages: list[dict[str, str]], strict: dict[str, Any], name: str,
+                         kwargs: dict[str, Any]) -> str:
         if not self._json_object_only:
             try:
                 return self._chat(system, messages, {
@@ -167,8 +183,12 @@ class LLMClient:
 
 def _schema_unsupported(exc: Exception) -> bool:
     """A 400 complaining about response_format/json_schema (rather than auth, model, network)."""
-    msg = str(exc).lower()
-    return getattr(exc, "status_code", None) in (400, 422) and ("response_format" in msg or "json_schema" in msg)
+    return _param_rejected(exc, "response_format") or _param_rejected(exc, "json_schema")
+
+
+def _param_rejected(exc: Exception, param: str) -> bool:
+    """A 400/422 naming a request parameter (rather than auth, model, network)."""
+    return getattr(exc, "status_code", None) in (400, 422) and param in str(exc).lower()
 
 
 def _daily_quota(text: str) -> bool:

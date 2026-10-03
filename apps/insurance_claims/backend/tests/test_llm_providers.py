@@ -64,6 +64,9 @@ def clean_model_config(monkeypatch):
     monkeypatch.setattr(config, "LLM_JUDGE_MODEL", None)
     monkeypatch.setattr(config, "PROVIDER_MODELS", {name: None for name in config.PROVIDERS})
     monkeypatch.setattr(llm, "_RESOLVED_MODEL", {})
+    monkeypatch.setattr(llm, "_RESOLVED_EFFORT", {})
+    monkeypatch.setattr(config, "LLM_BASE_URL", None)
+    monkeypatch.setattr(config, "REASONING_EFFORT", {"openai": None, "gemini": "low", "openrouter": None})
 
 
 def openai_client(provider, chat, monkeypatch, key="key", model=None):
@@ -78,7 +81,54 @@ def test_openai_compatible_branch_uses_strict_schema(monkeypatch):
     assert client.model == config.PROVIDERS["gemini"]["models"][0]
     assert client.structured("sys", [{"role": "user", "content": "hi"}], ResponseDraft, "draft").reply == "Hello."
     assert chat.calls[0]["response_format"]["type"] == "json_schema"
-    assert "reasoning_effort" not in chat.calls[0]
+    assert chat.calls[0]["reasoning_effort"] == "low"  # Gemini 3 thinks at its default level otherwise
+
+
+def test_reasoning_effort_only_where_configured(monkeypatch):
+    chat = FakeChat()
+    openai_client("openrouter", chat, monkeypatch).structured("sys", [], ResponseDraft, "draft")
+    openai_client("openai", chat, monkeypatch).structured("sys", [], ResponseDraft, "draft")
+    assert all("reasoning_effort" not in c for c in chat.calls)
+
+
+def test_rejected_thinking_level_steps_down_and_is_remembered(monkeypatch):
+    """Live: gemini-3.8-flash answered "Thinking level MINIMAL is not supported for this model" (400)."""
+    class LowOnly(FakeChat):
+        def create(self, **kw):
+            if kw.get("reasoning_effort") == "minimal":
+                self.calls.append(kw)
+                err = RuntimeError("Error code: 400 - [{'error': {'code': 400, 'message': 'Thinking level MINIMAL is "
+                                   "not supported for this model. Please retry with other thinking level.', "
+                                   "'status': 'INVALID_ARGUMENT'}}]")
+                err.status_code = 400
+                raise err
+            return super().create(**kw)
+
+    monkeypatch.setitem(config.REASONING_EFFORT, "gemini", "minimal")
+    chat = LowOnly()
+    client = openai_client("gemini", chat, monkeypatch)
+    assert client.structured("sys", [], ResponseDraft, "draft").reply == "Hello."
+    # A new client (one per request) for the same model goes straight to the accepted level.
+    openai_client("gemini", chat, monkeypatch, key="other").structured("sys", [], ResponseDraft, "draft")
+    assert [c.get("reasoning_effort") for c in chat.calls] == ["minimal", "low", "low"]
+    assert all(c["response_format"]["type"] == "json_schema" for c in chat.calls)
+
+
+def test_effort_rejected_at_every_level_is_dropped(monkeypatch):
+    class NoReasoning(FakeChat):
+        def create(self, **kw):
+            if "reasoning_effort" in kw:
+                self.calls.append(kw)
+                err = RuntimeError("Error code: 400 - reasoning_effort is not supported by this model")
+                err.status_code = 400
+                raise err
+            return super().create(**kw)
+
+    monkeypatch.setitem(config.REASONING_EFFORT, "gemini", "minimal")
+    chat = NoReasoning()
+    client = openai_client("gemini", chat, monkeypatch)
+    assert client.structured("sys", [], ResponseDraft, "draft").reply == "Hello."
+    assert [c.get("reasoning_effort") for c in chat.calls] == ["minimal", "low", "medium", None]
 
 
 def test_json_object_fallback_when_schema_rejected(monkeypatch):

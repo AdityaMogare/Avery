@@ -39,8 +39,8 @@ right-hand panel shows the phase, identity gate, remembered slots, facts and the
 
 | Check | Result | Source |
 |---|---|---|
-| Offline tests (gates, extraction, scenario specs, API) | **197/197** pass | `pytest` |
-| Live scenario specs + judged faithfulness, on the live model | **47/48** pass (miss: `edge_amount_paid_on_denied`) | `pytest -m llm` |
+| Offline tests (gates, extraction, scenario specs, API, providers) | **223/223** pass | `pytest` |
+| Live scenario specs + judged faithfulness, on the live model | **48/48** on OpenAI, **47/48** on OpenRouter (same model); the OpenRouter miss is fixed and re-checked live | `pytest -m llm` |
 | Unseen fixture data the harness was never tuned on | **10/10** scenarios | `evals/report_alt.md` |
 | Simulated callers (5 personas × 5 goals × 3 runs) | **71/75** conversations, **23/25** cells pass^3 | `evals/simulation_report.md` |
 | Impostor who knows only name + policy number | **never verified** (15/15) | `evals/simulation_report.md` |
@@ -83,14 +83,15 @@ docker run --rm -p 8000:8000 -e OPENAI_API_KEY=sk-... sop-agent   # or: --env-fi
 # open http://localhost:8000
 ```
 
-Three providers are supported, all tested live. Use a key either as an env var or pasted into the
-**LLM API key** field in the UI. The provider is detected from the key prefix:
+Three providers are supported. Use a key either as an env var or pasted into the **LLM API key** field in the
+UI. The provider is detected from the key prefix. **OpenAI or OpenRouter is recommended**: the live results
+were measured on both.
 
-| Provider | Key prefix | Env var | Models tried in order | Pin a model |
-|---|---|---|---|---|
-| OpenAI | `sk-`, `sk-proj-` | `OPENAI_API_KEY` | `gpt-5.4-nano` → `gpt-5.4-mini` | `OPENAI_MODEL` |
-| Google Gemini | `AIza` | `GEMINI_API_KEY` | `gemini-3.8-flash` → `gemini-3.5-flash-lite` | `GEMINI_MODEL` |
-| OpenRouter | `sk-or-` | `OPENROUTER_API_KEY` | `openai/gpt-5.4-nano` → `google/gemini-3.8-flash` | `OPENROUTER_MODEL` |
+| Provider | Key prefix | Env var | Models tried in order | Pin a model | Tested |
+|---|---|---|---|---|---|
+| OpenAI | `sk-`, `sk-proj-` | `OPENAI_API_KEY` | `gpt-5.4-nano` → `gpt-5.4-mini` | `OPENAI_MODEL` | full live suite (recommended) |
+| OpenRouter | `sk-or-` | `OPENROUTER_API_KEY` | `openai/gpt-5.4-nano` → `google/gemini-3.8-flash` | `OPENROUTER_MODEL` | full live suite (recommended) |
+| Google Gemini | `AIza` | `GEMINI_API_KEY` | `gemini-3.8-flash` → `gemini-3.5-flash-lite` | `GEMINI_MODEL` | demo smoke test only: a free key allows ≈20 requests per model per day (≈10 turns), and replies take about 2× as long |
 
 OpenRouter is the route to other model families (Claude, Llama, Grok and others): use an OpenRouter key and
 type the model id, e.g. `anthropic/claude-sonnet-5-5`, into the optional **Model** field. Anthropic, Groq and
@@ -120,7 +121,7 @@ Optional env vars (see `.env.example`): `OPENAI_MODEL` / `GEMINI_MODEL` / `OPENR
 (pin a model for that provider), `LLM_MODEL` and `LLM_JUDGE_MODEL` (apply only to the server's own provider,
 i.e. `LLM_PROVIDER` or the env key's provider, so a key pasted for another provider never gets a foreign model
 name; the judge defaults to the agent model), `LLM_PROVIDER`, `LLM_BASE_URL`,
-`OPENAI_REASONING_EFFORT` (OpenAI only), `AGENT_TODAY` (business date for derived facts such as "appeal deadline
+`OPENAI_REASONING_EFFORT` (optional) and `GEMINI_REASONING_EFFORT` (default `low`; Gemini 3 Flash models always think, and at their default level each call is several times slower; a level the model rejects steps down to the next), `AGENT_TODAY` (business date for derived facts such as "appeal deadline
 passed"), `LIVE_JUDGE=true` (runs the groundedness judge on every live reply). The old `OPENAI_JUDGE_MODEL`
 and `OPENAI_BASE_URL` names still work.
 
@@ -137,7 +138,7 @@ OPENAI_API_KEY=sk-... ../../../.venv/bin/uvicorn app.api:app --reload --port 800
 
 ```bash
 cd apps/insurance_claims/backend
-../../../.venv/bin/pytest                                   # 197 offline tests, live tests skipped
+../../../.venv/bin/pytest                                   # 223 offline tests, live tests skipped
 OPENAI_API_KEY=sk-... ../../../.venv/bin/pytest -m llm      # same scenario specs against the live model + judge
 ../../../.venv/bin/python -m evals.run_evals --offline      # scorecard -> evals/report.md
 # Live (OPENAI_API_KEY set, or in .env):

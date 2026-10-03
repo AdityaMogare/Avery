@@ -66,8 +66,15 @@ LLM_MODEL = os.getenv("LLM_MODEL") or None
 PROVIDER_MODELS = {name: os.getenv(spec["model_env"]) or None for name, spec in PROVIDERS.items()}
 # The groundedness judge can use a different (e.g. stronger) model; same scoping as LLM_MODEL.
 LLM_JUDGE_MODEL = os.getenv("LLM_JUDGE_MODEL") or os.getenv("OPENAI_JUDGE_MODEL") or None
-# Optional, only sent to OpenAI when set (not every model accepts it).
-OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT") or None
+# Thinking effort, sent as reasoning_effort. Gemini 3 Flash models always think, and without this they use
+# the model's default level, several times slower per call than OpenAI. Low is enough for extraction and
+# grounded phrasing (the verifier checks every reply); gemini-3.8-flash rejects "minimal". A rejected level
+# steps down automatically (llm._EFFORT_LADDER). OpenAI's is optional, since not every model accepts it.
+REASONING_EFFORT = {
+    "openai": os.getenv("OPENAI_REASONING_EFFORT") or None,
+    "gemini": os.getenv("GEMINI_REASONING_EFFORT") or "low",
+    "openrouter": None,
+}
 # Custom OpenAI-compatible endpoint; overrides the provider's base URL.
 LLM_BASE_URL = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or None
 # SDK retries for 429s and 5xx. OPENAI_MAX_RETRIES is the older name.
