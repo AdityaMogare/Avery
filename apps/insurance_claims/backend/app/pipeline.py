@@ -16,7 +16,7 @@ from .responder import LLMResponder, ResponseDraft, TemplateResponder
 from .sop.controller import SOPController
 from .state import Message, SessionState
 from .text_normalize import normalize_spoken
-from .understanding import HeuristicUnderstander, LLMUnderstander, high_precision_flags
+from .understanding import HeuristicUnderstander, LLMUnderstander, high_precision_flags, high_precision_refusal
 
 GREETING = ("Hi, thanks for calling claims support. I'm Avery. Before I can look into any claim, I need to "
             "verify your identity. Please share any 3 of: your full name, date of birth, phone number, "
@@ -44,8 +44,12 @@ class Agent:
         self.controller = SOPController(self.repo)
         self.template = TemplateResponder()
         self.heuristic = HeuristicUnderstander()
-        self.llm = LLMClient(api_key, model, provider) if api_key else None
-        judge_model = config.LLM_JUDGE_MODEL
+        self.notice: str | None = None  # shown to the user, e.g. a key from an unsupported provider
+        try:
+            self.llm = LLMClient(api_key, model, provider) if api_key else None
+        except config.UnsupportedKeyError as exc:
+            self.llm, self.notice = None, str(exc)
+        judge_model = config.server_scoped(config.LLM_JUDGE_MODEL, self.llm.provider) if self.llm else None
         self.judge_llm = (LLMClient(api_key, judge_model, self.llm.provider)
                           if self.llm and judge_model and judge_model != self.llm.model else self.llm)
         self.mode = f"llm:{self.llm.provider}:{self.llm.model}" if self.llm else "offline"
@@ -63,6 +67,14 @@ class Agent:
             result = self._handle(state, message)
         finally:
             USAGE_SINK.reset(token)
+        # A retired model was swapped for the next in its chain: trace it and report the model now in use.
+        for client in {id(c): c for c in (self.llm, self.judge_llm) if c}.values():
+            for switch in getattr(client, "fallbacks", []):
+                state.log("model_fallback", provider=client.provider, **switch)
+                result.events.append(state.trace[-1].model_dump())
+                if client is self.llm:
+                    self.mode = result.mode = f"llm:{client.provider}:{client.model}"
+            getattr(client, "fallbacks", []).clear()
         result.usage = {**summarize_usage(calls), "wall_ms": round((time.perf_counter() - started) * 1000)}
         state.log("turn_usage", **{k: v for k, v in result.usage.items() if k != "by_stage"}, stages=result.usage["by_stage"])
         result.events.append(state.trace[-1].model_dump())
@@ -71,7 +83,8 @@ class Agent:
     def _handle(self, state: SessionState, message: str) -> TurnResult:
         state.turn += 1
         first_event = len(state.trace)
-        errors: list[str] = []
+        errors: list[str] = [self.notice] if self.notice else []
+        llm_ok = self.llm is not None  # cleared after a fatal error (bad key, no usable model): skip later calls
         state.transcript.append(Message(role="user", content=message, turn=state.turn))
         # Spoken values ("four four seven two") in written form, for the regex extractor and the input
         # guard. The model and the transcript keep the caller's raw words.
@@ -81,11 +94,12 @@ class Agent:
 
         # 1. Understand (LLM extraction; heuristic offline / on error)
         understanding, source = None, "heuristic"
-        if self.llm:
+        if llm_ok:
             try:
                 understanding, source = LLMUnderstander(self.llm).understand(state, message), "llm"
             except LLMError as exc:
                 errors.append(f"understanding: {exc}")
+                llm_ok = not exc.fatal
         if understanding is None:
             understanding = self.heuristic.understand(state, written)
         state.log("understanding", source=source,
@@ -113,6 +127,11 @@ class Agent:
                 state.log("guardrail_backstop", injection=injection, off_topic=off_topic)
             understanding.is_injection_attempt |= injection
             understanding.is_off_topic |= off_topic
+            # Pushback on verification gets the "why it's required" explanation even when the model misses it.
+            # Before verification only: afterwards the flag would just count as frustration.
+            if not state.verified and not understanding.refuses_verification and high_precision_refusal(written):
+                state.log("guardrail_backstop", refusal=True)
+                understanding.refuses_verification = True
             # Follow-up topics and "I don't have the document" use precise phrase detectors as a backstop too.
             for topic in regex.followup_topics:
                 if topic not in understanding.followup_topics:
@@ -131,10 +150,10 @@ class Agent:
         state.log("decision", phase=state.phase.value, actions=decision.actions, fact_ids=list(decision.facts.facts))
 
         # 5-6. Respond, verify, regenerate once, fall back to the deterministic template
-        draft, check, responder_used = self._respond_verified(state, decision, message, errors)
+        draft, check, responder_used = self._respond_verified(state, decision, message, errors, llm_ok)
 
         judge = None
-        if self.llm and config.LIVE_JUDGE:
+        if llm_ok and config.LIVE_JUDGE:
             try:
                 judge_result = judge_reply(self.judge_llm, draft.reply, decision.facts, message)
                 judge = {"faithfulness": judge_result.faithfulness, **judge_result.model_dump()}
@@ -153,8 +172,8 @@ class Agent:
             mode=self.mode, judge=judge, errors=errors,
         )
 
-    def _respond_verified(self, state, decision, message, errors) -> tuple[ResponseDraft, Any, str]:
-        if self.llm:
+    def _respond_verified(self, state, decision, message, errors, llm_ok=True) -> tuple[ResponseDraft, Any, str]:
+        if self.llm and llm_ok:
             responder = LLMResponder(self.llm)
             violations: list[str] | None = None
             for attempt in range(2):

@@ -95,7 +95,8 @@ def evaluate(run: ScenarioRun, agent: Agent) -> None:
     if "failed_attempts" in exp and state.verification.failed_attempts != exp["failed_attempts"]:
         f.append(f"failed_attempts: expected {exp['failed_attempts']}, got {state.verification.failed_attempts}")
     for turn, pattern in exp.get("reply_matches_by_turn", {}).items():
-        if not re.search(pattern, normalize_quotes(results[int(turn) - 1].reply), re.I):
+        # re.S: a reply may list options on separate lines (live: a numbered list of candidate claims).
+        if not re.search(pattern, normalize_quotes(results[int(turn) - 1].reply), re.I | re.S):
             f.append(f"turn {turn} reply does not match required /{pattern}/")
     for action in exp.get("actions_never", []):
         if any(action in r.actions for r in results):

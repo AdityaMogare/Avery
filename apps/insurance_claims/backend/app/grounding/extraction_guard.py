@@ -11,7 +11,9 @@ from difflib import SequenceMatcher
 
 from ..sop.verification import FIELD_LABELS, normalize_dob
 from ..state import MONTHS
-from ..understanding import TurnUnderstanding
+from ..understanding import DOMAIN_WORDS, TurnUnderstanding
+
+_YES_NO = re.compile(r"\b(yes|yeah|yep|sure|ok|okay|no|nope|nah|please|send|skip|don't|do not)\b")
 
 FIELD_FOR_ATTR = {"full_name": "name", "dob": "dob", "phone": "phone", "email": "email", "id_last4": "id_last4"}
 
@@ -94,10 +96,11 @@ def ground_understanding(und: TurnUnderstanding, message: str) -> GuardResult:
         said_a_date = bool(re.search(r"\d", message)) or any(m.casefold()[:3] in low for m in MONTHS)
         res.rejected["dob"] = _raw_date_like(message) or ("unclear" if said_a_date else "not found in the message")
         u.dob = None
-    if u.id_last4 and u.id_last4 not in msg_digits:
+    # A value with no digits ("" is a substring of anything) is never grounded.
+    if u.id_last4 and (not _digits(u.id_last4) or u.id_last4 not in msg_digits):
         res.rejected["id_last4"] = "not found in the message"
         u.id_last4 = None
-    if u.phone and _digits(u.phone)[-10:] not in msg_digits:
+    if u.phone and (not _digits(u.phone) or _digits(u.phone)[-10:] not in msg_digits):
         res.rejected["phone"] = "not found in the message"
         u.phone = None
     if u.email and u.email.casefold() not in low:
@@ -124,9 +127,20 @@ def ground_understanding(und: TurnUnderstanding, message: str) -> GuardResult:
         res.rejected["case_year"] = "not stated in the message"
     for attr in ("policy_number", "case_id"):
         value = getattr(u, attr)
-        if value and _digits(value) not in msg_digits:
+        if value and (not _digits(value) or _digits(value) not in msg_digits):
             setattr(u, attr, None)
             res.rejected[attr] = "not found in the message"
+    # An off-topic message carries no claim intent or answer to a pending offer unless its words say so (live,
+    # via OpenRouter: "What is RL?" came back with intent=general_claim_question and affirmation="no", so the
+    # agent answered the claim too instead of a one-line scope refusal).
+    if u.is_off_topic:
+        if u.intent and not any(w in low for w in DOMAIN_WORDS):
+            res.rejected["intent"] = "off-topic message with no claim words"
+            u.intent = None
+        for attr in ("affirmation", "email_choice"):
+            if getattr(u, attr) and not _YES_NO.search(low):
+                res.rejected[attr] = "off-topic message with no yes/no"
+                setattr(u, attr, None)
     return res
 
 

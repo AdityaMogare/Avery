@@ -173,7 +173,7 @@ def main() -> int:
     args = ap.parse_args()
     key = config.env_api_key()
     if not key:
-        print("An LLM API key is required (LLM_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, ...)", file=sys.stderr)
+        print("An LLM API key is required (OPENAI_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY or LLM_API_KEY)", file=sys.stderr)
         return 2
     agent, sim = Agent(api_key=key), LLMClient(key)
     jobs = [(p, g) for p in args.personas for g in args.goals for _ in range(args.runs)]
